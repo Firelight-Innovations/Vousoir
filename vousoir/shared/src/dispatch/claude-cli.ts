@@ -55,9 +55,16 @@ export const CLAUDE_DISPATCH_ARGS: readonly string[] = [
 	'acceptEdits',
 ];
 
-/** The default CLI invocation. */
-export function claudeCli(): ClaudeCli {
-	return { command: CLAUDE_COMMAND, args: CLAUDE_DISPATCH_ARGS };
+/**
+ * The default CLI invocation, optionally pinned to a model.
+ *
+ * The orchestrator uses `model` to run child modules on a cheaper model than the one
+ * driving the orchestration — the M6 brief's Opus-parent / Sonnet-children shape. Omitted,
+ * the CLI picks its own default, which is the right behaviour for a direct dispatch.
+ */
+export function claudeCli(model?: string): ClaudeCli {
+	const args = model === undefined ? CLAUDE_DISPATCH_ARGS : [...CLAUDE_DISPATCH_ARGS, '--model', model];
+	return { command: CLAUDE_COMMAND, args };
 }
 
 /**

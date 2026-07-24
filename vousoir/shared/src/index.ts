@@ -47,5 +47,10 @@ export type { DispatchRun, DispatchSpawn, DispatchWorkOrderOptions } from './dis
 export { claudeCli, claudeMissingMessage, claudeSpawnOptions, findClaudeCli, CLAUDE_COMMAND, CLAUDE_DISPATCH_ARGS } from './dispatch/claude-cli.ts';
 export type { ClaudeCli, DispatchSpawnOptions } from './dispatch/claude-cli.ts';
 export { mapClaudeStreamLine } from './dispatch/claude-stream-mapper.ts';
+
+// Orchestration: one child agent per sub-module (M6 part B). Sequential by default, since
+// `acceptEdits` agents share one workspace until per-run worktree isolation lands.
+export { orchestrateSubtree, INTEGRATION_TESTS_BLOCKED_DETAIL } from './orchestrate/orchestrate-subtree.ts';
+export type { OrchestrateSubtreeOptions, OrchestrationDispatch } from './orchestrate/orchestrate-subtree.ts';
 export { TraceWriter } from './dispatch/trace-writer.ts';
 export type { TraceEventBody } from './dispatch/trace-writer.ts';

@@ -41,3 +41,7 @@ export * from './dispatch.ts';
 // The nine MCP tool payloads the standalone spec server exposes (ADR-006). Schemas only —
 // the SDK itself may never be imported into typings (`typings-only-imports-zod`).
 export * from './mcp-spec-tools.ts';
+
+// Fanning a parent module out to one child agent per sub-module. Cross-sibling integration
+// testing is reported as blocked on ADR open question 10, not silently omitted.
+export * from './orchestration.ts';
