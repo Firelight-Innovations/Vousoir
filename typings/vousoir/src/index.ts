@@ -33,3 +33,7 @@ export * from './spec-node.ts';
 
 // The compiled work order handed to a coding agent (source-of-truth Feature 4).
 export * from './work-order.ts';
+
+// Dispatching a work order to a coding agent, and the transient status of one run
+// (source-of-truth Feature 5, ADR-005).
+export * from './dispatch.ts';
