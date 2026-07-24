@@ -25,3 +25,9 @@ export { buildSpecTree } from './spec-store/spec-tree.ts';
 export { specNodeDescendantIds, specNodeIdChain } from './spec-store/spec-tree-walk.ts';
 export { specNodePaths, SPEC_FILE_EXTENSION } from './spec-store/spec-paths.ts';
 export type { SpecNodePaths } from './spec-store/spec-paths.ts';
+
+// The work-order compiler (source-of-truth Feature 4). `compileWorkOrder` is pure; writing
+// is a separate step so the user can review before anything reaches disk.
+export { compileWorkOrder } from './work-order/compile-work-order.ts';
+export { workOrderSlug } from './work-order/work-order-slug.ts';
+export { writeWorkOrder, workOrdersDir } from './work-order/write-work-order.ts';
