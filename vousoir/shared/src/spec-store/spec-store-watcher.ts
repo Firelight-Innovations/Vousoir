@@ -11,7 +11,7 @@
  *   - Bursts are coalesced. One logical save fires several `fs.watch` events on Windows.
  */
 
-import { watch, type FSWatcher } from 'node:fs';
+import { realpathSync, watch, type FSWatcher } from 'node:fs';
 import { join } from 'node:path';
 import { SPEC_FILE_EXTENSION } from './spec-paths.ts';
 
@@ -52,7 +52,17 @@ export class SpecStoreWatcher {
 		this.#onChange = onChange;
 		this.#debounceMs = options.debounceMs ?? DEFAULT_DEBOUNCE_MS;
 		this.#selfWriteWindowMs = options.selfWriteWindowMs ?? DEFAULT_SELF_WRITE_WINDOW_MS;
-		this.#watcher = watch(this.#specDir, { recursive: true }, (_event, filename) => {
+		// Watch the CANONICAL path, report the caller's. On Windows, libuv asserts that the
+		// filenames ReadDirectoryChangesW hands back start with the directory it was given
+		// (`src/win/fs-event.c:72`) — and that assertion is a hard process abort, not a
+		// catchable throw. It fails whenever the watched path differs in form from the
+		// canonical one: an 8.3 short component (`C:\Users\RUNNER~1\...`, which is exactly
+		// what `os.tmpdir()` returns on a GitHub Windows runner), a symlinked workspace, or
+		// mismatched case. `realpathSync.native` resolves all three.
+		//
+		// Events are still reported under `#specDir`, so a consumer's paths keep matching
+		// `store.specDir` rather than silently becoming resolved paths.
+		this.#watcher = watch(realpathSync.native(this.#specDir), { recursive: true }, (_event, filename) => {
 			this.#enqueue(filename === null ? undefined : join(this.#specDir, filename.toString()));
 		});
 	}
