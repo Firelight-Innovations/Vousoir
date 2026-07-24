@@ -119,7 +119,7 @@ to hardcoded script paths** in `vousoir/package.json:13-18`, where `lint`, `lint
 `dep-check` all name `extensions/vousoir-core` literally. Miss one and the new extension is silently
 unlinted and unchecked by `pnpm run verify` while CI still reports green.
 
-Against that, `extensions/vousoir-core/src/extension.ts:5-7` already declares itself *"the only
+Against that, `extensions/vousoir-core/src/extension.ts:2,6-7` already declares itself *"the only
 code-oss-facing entry point for Vousoir functionality … All future Vousoir features register through
 this extension"*, and it already owns the service-host lifecycle that M5 and M6 will need. Adding a
 `custom-editor/` folder beside the existing `panel/` and `service-host/` folders is the smaller move.
@@ -241,7 +241,7 @@ fine; a large file is not.
   "*.{jpg,jpe,jpeg,png,bmp,gif,ico,webp,avif,svg}" }] }]` — the live contribution-point template.
 - `extensions/media-preview/src/audioPreview.ts:116` — `return
   vscode.window.registerCustomEditorProvider(AudioPreviewProvider.viewType, provider, {`
-- `extensions/vousoir-core/src/extension.ts:5-7` — *"the only code-oss-facing entry point for Vousoir
+- `extensions/vousoir-core/src/extension.ts:2,6-7` — *"the only code-oss-facing entry point for Vousoir
   functionality … All future Vousoir features register through this extension."*
 - `vousoir/package.json:13-18` — `lint`, `lint:strict`, `lint:fix`, `dep-check` each end with a
   literal path list containing `extensions/vousoir-core`.
@@ -1182,7 +1182,7 @@ built around seeding an *authenticated* Copilot profile and exposes an `agentHos
 agents window (`src/vs/sessions/`), `platform/agentHost`, and all chat were physically deleted.
 Confirmed: `src/vs/sessions`, `src/vs/platform/agentHost`, and `src/vs/workbench/contrib/vousoir` all
 return `False` for `Test-Path`. Use `scripts/code.bat` for a Windows launch — what every §9 acceptance
-test uses, per `PATCHES.md:318`.
+test uses, per `PATCHES.md:317`.
 
 ### Decision
 
@@ -1213,7 +1213,7 @@ are measured, not estimated.
 | Change | Command | Result |
 |---|---|---|
 | `extensions/vousoir-core` (the M2/M3/M5 inner loop) | `cd extensions/vousoir-core; node --experimental-strip-types ./esbuild.mts` | **exit 0, 0.28 s** |
-| Vousoir layer (`typings/`, `vousoir/`, `extensions/vousoir-*`) | `cd vousoir; pnpm run verify` | **exit 0**, 9 files, **22 tests** (shared 6, service-host 10, boundary-tests 6) |
+| Vousoir layer (`typings/`, `vousoir/`, `extensions/vousoir-*`) | `cd vousoir; pnpm run verify` | **exit 0**, 9 files, **22 tests** (shared 6, service-host 10, boundary-tests 6) — *measured at recon; M1 took it to 66* |
 | `src/` (core) | `npm run typecheck-client` | **exit 0, 6.48 s** |
 | all `extensions/` | `npm run gulp compile-extensions` | **FAILS — see below** |
 | Launch on Windows | `scripts/code.bat` | (**not** the `launch` skill — macOS/Linux only) |
@@ -1332,7 +1332,7 @@ own `esbuild.mts`, not the gulp/tsc pipeline, which is why the 0.28 s loop succe
   `True` in the main worktree. `package.json:22` — `"postinstall": "node build/npm/postinstall.ts"`.
 - `git diff 1.130.0 -- extensions/grunt/package.json extensions/notebook-renderers/package.json`
   shows only display-string rebranding, confirming the fork did not cause the type error.
-- `vousoir/PATCHES.md:318` — *"every §9 acceptance test runs from source via `scripts/code.bat`"*.
+- `vousoir/PATCHES.md:317` — *"every §9 acceptance test runs from source via `scripts/code.bat`"*.
 - `Test-Path` verified `False` for `src/vs/sessions`, `src/vs/platform/agentHost`, and
   `src/vs/workbench/contrib/vousoir` — the `launch` skill's agent-host surface no longer exists.
 
@@ -1417,7 +1417,7 @@ churn ADR-002 exists to keep out of spec diffs.
 
 Everything added must be re-exported from `typings/vousoir/src/index.ts`, or the sealed barrel makes
 it unreachable from the extension (ADR-001). Every change must leave `pnpm run verify` green — 22
-tests today.
+tests at recon, **66 after M1**.
 
 ### Consequences
 
@@ -1534,11 +1534,12 @@ is in `ARCHITECTURE.md` §6 M4.
 
 ### 2. `*.v6r` manifest format — **RESOLVED 2026-07-24: JSON**, as proposed.
 
-Three reasons, unchanged from the proposal. (a) No YAML parser is a declared dependency of any Vousoir
-package today (`PATCHES.md` D7), and `JSON.parse` needs none — the manifest can ship in M1 while the YAML
-dependency waits for M3. (b) The manifest is machine-written config, not prose; Feature 10's portability
-promise is about *specs*, which stay markdown + YAML regardless. (c) zod validates a parsed JSON object
-directly, consistent with *"the schema is the contract"* (`vousoir-technical-spec.md:153`).
+Three reasons were given. (a) ~~No YAML parser is a declared dependency of any Vousoir package, and
+`JSON.parse` needs none~~ — **this reason has since evaporated**: M1 landed `yaml@2.9.0` and closed
+`PATCHES.md` D7. (b) The manifest is machine-written config, not prose; Feature 10's portability promise
+is about *specs*, which stay markdown + YAML regardless. (c) zod validates a parsed JSON object directly,
+consistent with *"the schema is the contract"* (`vousoir-technical-spec.md:153`). **The ruling stands on
+(b) and (c)** — it was the user's call, not a consequence of the dependency situation.
 
 ### 3. `*.v6r` file vs the `.v6r/` directory — **RESOLVED 2026-07-24: rename the directory to `.vousoir/`.**
 

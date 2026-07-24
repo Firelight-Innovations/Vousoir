@@ -92,7 +92,7 @@ wastes minutes or reports a failure you did not cause.
 | You changed | Run | Measured |
 |---|---|---|
 | `extensions/vousoir-core/**` — **the M2/M3/M5 inner loop** | `cd extensions/vousoir-core; node --experimental-strip-types ./esbuild.mts` | exit 0, **0.28 s** |
-| Anything in the Vousoir layer — **the gate before every commit** | `cd vousoir; pnpm run verify` | exit 0, **22 tests** (shared 6, service-host 10, boundary-tests 6) |
+| Anything in the Vousoir layer — **the gate before every commit** | `cd vousoir; pnpm run verify` | exit 0, **66 tests** (22 at recon; M1 took it to 66) |
 | `src/` (core) | `npm run typecheck-client` | exit 0, **6.48 s** |
 | All built-in extensions | `npm run gulp compile-extensions` | **BROKEN — see below** |
 | Run the app | `scripts/code.bat` | Windows |
@@ -146,7 +146,7 @@ stop-the-world event: coordinate, reinstall once, re-verify both branches.
 
 ### Launching the app
 
-Use **`scripts/code.bat`** on Windows. `vousoir/PATCHES.md:318` confirms *"every §9 acceptance test
+Use **`scripts/code.bat`** on Windows. `vousoir/PATCHES.md:317` confirms *"every §9 acceptance test
 runs from source via `scripts/code.bat`"*.
 
 The `launch` skill at `.agents/skills/launch/` (tracked; `.claude/skills` is a junction to it) gives
