@@ -16,14 +16,10 @@
 
 import * as vscode from 'vscode';
 import { SpecStore, compileWorkOrder, writeWorkOrder } from '@vousoir/shared';
-import type { SpecTree, SpecTreeNode } from '@vousoir/typings';
+import { toSpecNodePicks } from '../spec-node-quick-pick.ts';
 
 /** Command id. Namespaced `vousoir.*` like every other Vousoir contribution. */
 export const COMPILE_WORK_ORDER_COMMAND_ID = 'vousoir.compileWorkOrder';
-
-interface SpecNodePick extends vscode.QuickPickItem {
-	readonly nodeId: string;
-}
 
 /** Registers the command. Returns a disposable for `context.subscriptions`. */
 export function registerCompileWorkOrderCommand(log: vscode.OutputChannel): vscode.Disposable {
@@ -49,7 +45,7 @@ async function compileWorkOrderInteractively(log: vscode.OutputChannel): Promise
 	const repoRoot = folder.uri.fsPath;
 	const store = await SpecStore.open({ repoRoot });
 	try {
-		const picks = toPicks(store.tree);
+		const picks = toSpecNodePicks(store.tree);
 		if (picks.length === 0) {
 			void vscode.window.showInformationMessage('Vousoir: no spec nodes found under .vousoir/spec/ in this folder.');
 			return;
@@ -78,22 +74,3 @@ async function compileWorkOrderInteractively(log: vscode.OutputChannel): Promise
 	}
 }
 
-/** Flattens the tree depth-first so the quick pick reads in the shape of the spec. */
-function toPicks(tree: SpecTree): readonly SpecNodePick[] {
-	const picks: SpecNodePick[] = [];
-	const visit = (node: SpecTreeNode, depth: number): void => {
-		picks.push({
-			label: `${'    '.repeat(depth)}${node.frontmatter.title}`,
-			description: node.id,
-			detail: `${'    '.repeat(depth)}status: ${node.frontmatter.status}`,
-			nodeId: node.id,
-		});
-		for (const child of node.children) {
-			visit(child, depth + 1);
-		}
-	};
-	for (const root of tree.roots) {
-		visit(root, 0);
-	}
-	return picks;
-}
