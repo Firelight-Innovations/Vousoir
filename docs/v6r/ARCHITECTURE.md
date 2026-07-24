@@ -310,6 +310,14 @@ scaffolds by iterating it. **Add a directory there, never at a call site.**
 The directory was renamed from `.v6r/` on 2026-07-24 (ADR-002 amendment); `V6R_ROOT_DIRNAME` keeps its
 name and changes value.
 
+> **`.vousoir/` is not `.vousoir-app/`.** They are one hyphen apart and mean entirely different things.
+> `product.json` defines `dataFolderName: ".vousoir-app"` (`:5`), `sharedDataFolderName:
+> ".vousoir-app-shared"` (`:6`) and `serverDataFolderName: ".vousoir-server"` (`:15`) — those are the
+> shell's **application state in the user's home directory** (`~/.vousoir-app`), inherited from
+> code-oss's `.vscode-*` convention. `.vousoir/` is **per-repo project data at the repo root**, and it
+> is Vousoir's own. Different location, different owner, no collision — but do not reach for one
+> expecting the other, and never store project data under `dataFolderName`.
+
 - **Work orders** are compiled artefacts. Write them under `.vousoir/cache/work-orders/` (derived and
   regenerable from the spec) and let M4 render to a user-chosen path on explicit save.
 - **Node positions** → `.vousoir/layout.json`, **not** `.vousoir/cache/`. Manual placement is supported,
@@ -345,11 +353,27 @@ specNodeFrontmatterSchema = z.object({
 - add `contracts: z.array(contractSchema).optional()` with `kind: z.enum(['moduleApi','serviceApi','dbSchema'])`;
 - keep scalar `contract` accepted as deprecated back-compat (`contracts[]` wins when both present);
 - add optional `given` / `when` / `then` / `snippet` to test cases, keeping `description` + `expected` required;
-- **no `children`** (derived from `parent`), **no `position`** (derived, cached).
+- **no `children`** (derived from `parent`), **no `position`** (positions live in `.vousoir/layout.json`).
 
-The markdown body below the frontmatter is free-form prose the schema does not constrain. Golden
-fixtures live at `vousoir/shared/src/fixtures/spec-node-frontmatter.{valid,invalid}.json` and must
-grow alongside the schema — including one asserting a legacy scalar-`contract` file still validates.
+**The markdown body is the canonical home for behaviour prose** (ADR-002 amendment, 2026-07-24). The
+`behaviour` frontmatter field is a **deprecated fallback**, kept valid for files that already use it,
+in the same shape ADR-008 uses for scalar `contract` beside `contracts[]`. A reader prefers the body
+when it has content and falls back to the field when it does not —
+`vousoir/shared/src/spec-store/resolve-spec-node.ts:44` is that reader, and it is the only one anyone
+should write. **Text is never migrated between the two**, so no file gets a whole-file diff on first
+save. M3's spec panel must bind its editor to the **body**.
+
+> **`lineWidth: 0` on every YAML serialise. This is binding, not a tip.** The `yaml` package re-wraps
+> any string past ~80 columns by default, which silently rewrites a long behaviour or contract body on
+> every save — a direct Feature 10 violation, and invisible until a diff shows a file nobody edited.
+> Enforced at `vousoir/shared/src/spec-store/spec-file.ts:24`
+> (`const YAML_TO_STRING_OPTIONS: ToStringOptions = { lineWidth: 0 };`). Every future serialise call
+> must honour it.
+
+Golden fixtures live at `vousoir/shared/src/fixtures/spec-node-frontmatter.{valid,invalid}.json` and
+must grow alongside the schema — including one asserting a legacy scalar-`contract` file still
+validates. M1 added a **second** fixture set, a real `.md` tree at
+`vousoir/shared/src/fixtures/spec-tree/`; the JSON goldens were not converted, and both sets are live.
 
 ---
 
@@ -360,8 +384,11 @@ All paths relative to the repo root. Every milestone's gate is `cd vousoir; pnpm
 ### M1 — Model + spec store
 
 **Creates:** extends `typings/vousoir/src/spec-node-frontmatter.ts` (contracts[], test-case fields);
-new `typings/vousoir/src/v6r-manifest.ts`; re-exports in `typings/vousoir/src/index.ts`; reader/writer
-in `vousoir/shared/src/spec-store/`; fixtures under `vousoir/shared/src/fixtures/`.
+re-exports in `typings/vousoir/src/index.ts`; reader/writer in `vousoir/shared/src/spec-store/`;
+fixtures under `vousoir/shared/src/fixtures/`.
+**Moved to M2:** `typings/vousoir/src/v6r-manifest.ts`. This document listed it as an M1 deliverable;
+the M1 brief did not, and M1 correctly followed the brief. It belongs with M2, which has to answer the
+`*.v6r` filename question anyway. **Not a dropped deliverable.**
 **Acceptance:** `pnpm run verify` green with new tests covering — round-trip a node to disk and back;
 a legacy scalar-`contract` file still validates; a `parent` cycle is rejected; tree assembled from
 `parent` pointers matches folder nesting.
@@ -382,7 +409,8 @@ rename in M1 is what keeps M2 from having to migrate a directory that already ex
 `extensions/vousoir-core/src/canvas/layout.ts` (**pure function, no `vscode` import**),
 `extensions/vousoir-core/media/canvas.{js,css}`, `customEditors` + first `vousoir.*` commands in
 `package.json` (including the auto-tidy command), a second browser-target entry in `esbuild.mts`,
-and a `.vousoir/layout.json` reader/writer.
+a `.vousoir/layout.json` reader/writer, and `typings/vousoir/src/v6r-manifest.ts` (moved here from
+M1 — the manifest is JSON, and its filename question is M2's to answer).
 **Acceptance:** open a `*.v6r` file → nested boxes render for the tree in `.vousoir/spec/`; add, delete and
 re-nest a node → the file on disk updates; drag a node → its position persists to
 `.vousoir/layout.json` and survives a `.vousoir/cache/` wipe; run auto-tidy → layout re-runs;
@@ -482,7 +510,8 @@ hand on.
 | D2 | **`compile-extensions` fails** — TS2688 in `grunt`, `notebook-renderers` | Cannot use it as a green-build gate. Do **not** mistake it for a regression. | `npm ci` here (runs the root postinstall). Not tsconfig patches. |
 | D3 | **Packaged builds cannot find service-host** (`PATCHES.md` L1) | Dev builds only. Extension logs a clear diagnostic and degrades gracefully. | Deferred — needs a `build/gulpfile.vscode.*` core patch. |
 | D4 | **Services spawned as raw `.ts`** relying on Node 24 type stripping (`PATCHES.md` A2, open risk) | Electron 42.6.0's bundled Node may differ; stripping only supports erasable syntax. | Fallback: esbuild service entries to `.js`. |
-| D5 | **No YAML dependency** anywhere in the Vousoir layer (`PATCHES.md` D7) | M1/M3/M6 all need one; fixtures are JSON as a workaround. | M1 adds it and re-points the fixtures at real `.md`. |
+| D5 | ~~**No YAML dependency** anywhere in the Vousoir layer (`PATCHES.md` D7)~~ | — | **CLOSED by M1** (PR #12): `yaml@2.9.0`. The JSON frontmatter goldens were kept; a real `.md` tree fixture was added beside them. |
+| D9 | **`vousoir/PATCHES.md:63` and `vousoir/HANDOFF.md:183` still say `.v6r/`** | Looks like a missed rename. It is not. | **Ruled 2026-07-24: leave them.** Both are historical records — a ledger row describing a past README rewrite, and a completed acceptance-test checklist. They accurately describe what was true when written, and rewriting a record of the past to match the present is how a ledger stops being trustworthy. **Do not "fix" these.** |
 | D6 | **`launch` skill is stale and Windows-hostile** | Cannot be used here. References deleted `agentHost`. | Use `scripts/code.bat`. Rewrite the skill or delete it. |
 | D7 | `CONTRIBUTING.md:116` still states the retired ≤15-patch budget | Contradicts `PATCHES.md:14`. Misleads readers. | One-line fix. |
 | D8 | Deferred residue from the AI excision (`PATCHES.md:101-106`) | Dead but compiling: AI-search type surface, `_chatExtensionId`, three orphaned dirs. | Tracked in `DEAI-PROGRESS.md`. |

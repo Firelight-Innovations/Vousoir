@@ -42,7 +42,7 @@ files are *not* core patches"* — it needs no `PATCHES.md` entry, even though `
 | # | Title | Status | Decision in one line |
 |---|-------|--------|----------------------|
 | ADR-001 | Host the canvas as a built-in extension, not a core workbench contrib | Accepted | Canvas, spec panel and dispatch live in `extensions/vousoir-core` behind `registerCustomEditorProvider` bound to `*.v6r`; **not** `src/vs/workbench/contrib/vousoir/`. |
-| ADR-002 | Specs are markdown + YAML frontmatter under `.vousoir/spec/`; `*.v6r` is a thin manifest | Accepted · **amended 2026-07-24** | Ratify the shipped `specNodeFrontmatterSchema` and `V6R_SUBDIRS`; the `*.v6r` file the editor binds to is a small project manifest, not the model. **Amended:** the directory is `.vousoir/`, not `.v6r/`. |
+| ADR-002 | Specs are markdown + YAML frontmatter under `.vousoir/spec/`; `*.v6r` is a thin manifest | Accepted · **amended ×2, 2026-07-24** | Ratify the shipped `specNodeFrontmatterSchema` and `V6R_SUBDIRS`; the `*.v6r` file the editor binds to is a small project manifest, not the model. **Amended:** the directory is `.vousoir/`, not `.v6r/`; and the markdown **body** is canonical for behaviour prose, with the `behaviour` field a deprecated fallback. |
 | ADR-003 | Hand-roll recursive tree layout; no ELK or dagre | Accepted · **amended 2026-07-24** | ~150 lines of recursive nested-box layout, no layout library — the model is a strict tree, not a general graph. **Amended:** manual placement is supported, auto-layout is an explicit auto-tidy command, positions live in `.vousoir/layout.json`. **Supersedes Feature 3's auto-layout-on-every-mutation.** |
 | ADR-004 | Ship webview assets as extension files via `asWebviewUri` | Accepted | Canvas JS/CSS are real files under `media/`, loaded through `asWebviewUri` + `localResourceRoots` under a nonce CSP. No CDN, no network. |
 | ADR-005 | Dispatch Claude Code from the extension host via `child_process` | Accepted | M5 spawns `claude -p …` from extension-host Node code with `ELECTRON_RUN_AS_NODE=1`; no new IPC service. |
@@ -252,8 +252,9 @@ fine; a large file is not.
 
 ## ADR-002 — Specs are markdown + YAML frontmatter under `.vousoir/spec/`; `*.v6r` is a thin manifest
 
-**Status:** Accepted (2026-07-24) — **amended 2026-07-24** (project directory renamed `.v6r/` → `.vousoir/`)
-**Deciders:** orchestrating agent; amendment ruled by the user on PR #11
+**Status:** Accepted (2026-07-24) — **amended twice on 2026-07-24**: project directory renamed
+`.v6r/` → `.vousoir/`; the markdown body is canonical for behaviour prose.
+**Deciders:** orchestrating agent; amendments ruled on during review of PR #11 and PR #12
 
 ### Amendment (2026-07-24) — the project directory is `.vousoir/`, not `.v6r/`
 
@@ -273,11 +274,37 @@ so `filenamePattern: "*.v6r"` can no longer collide with a directory entry.
 - One quotation is deliberately left verbatim: `vousoir/CONTRIBUTING.md:43-47` says *"`.v6r` layout"*
   with no trailing slash, referring to the layout **module**, and that file is not being edited here.
 
-**This amendment reverses one of this ADR's own corrections.** The Context below originally recorded
-`vousoir-technical-spec.md:132` as superseded for naming the folder `.vousoir/`. On the directory name
-the technical spec was right and the shipped code was the deviation. What remains superseded is only
-its *contents*: §3.5 lists `spec/`, `whiteboards/`, `vousoir.db` and `worktrees/`, where the code has
-five subdirectories and no `vousoir.db` or `worktrees/`.
+**This amendment reverses one of this ADR's own corrections, and the reversal is left on the record
+rather than edited away.** The Context below originally concluded *"The code is operative; that section
+of the technical spec is superseded"* about `vousoir-technical-spec.md:132`. That verdict was wrong in
+one direction: **on the directory name the technical spec was right all along, and the code has now
+been corrected to match it.** What remains superseded is only §3.5's *contents*: it lists `spec/`,
+`whiteboards/`, `vousoir.db` and `worktrees/`, where the code has five subdirectories and no
+`vousoir.db` or `worktrees/`. The fact that these docs briefly declared the spec superseded is kept
+deliberately — a reader who saw the earlier claim needs to find out here that it was withdrawn.
+
+### Amendment (2026-07-24) — the markdown body is canonical for behaviour prose
+
+`behaviour` has two possible homes, and this document described both without reconciling them: the
+shipped schema has a `behaviour` **frontmatter field** (used by the golden fixture), while Decision 1
+and `ARCHITECTURE.md` §5 describe the markdown **body** as unconstrained prose. Both read as "where
+behaviour lives."
+
+**Decision: the markdown body is canonical.** That is the point of markdown + YAML frontmatter under
+Feature 10, "Portable Spec Files" — long prose belongs in a body a human can read, edit outside the
+tool, and diff line by line. A multi-paragraph behaviour stuffed into a YAML scalar is bad at all
+three.
+
+- The `behaviour` **frontmatter field is retained as a deprecated fallback** for files that already
+  use it — exactly the shape ADR-008 uses for scalar `contract` beside `contracts[]`.
+- **Text is never silently migrated between the two.** No existing file is rewritten on first save.
+  A reader prefers the body when it has content and falls back to the field when it does not.
+
+**This ratifies shipped behaviour rather than requesting new work.** M1 already implemented it:
+`vousoir/shared/src/spec-store/resolve-spec-node.ts:44` — `resolveSpecNodeBehaviour` returns the
+trimmed body when non-empty, otherwise `frontmatter.behaviour`, and writes nothing. So this is a
+documentation change only. **It had to be settled before M3 builds the spec panel**, because a panel
+that binds an editor to the wrong field is what would cause the silent migration this forbids.
 
 ### Context
 
@@ -327,7 +354,9 @@ technical spec is now operative** — the 2026-07-24 amendment above renames the
 
 1. One markdown file per spec node, with YAML frontmatter validated by the **existing**
    `specNodeFrontmatterSchema`, under `.vousoir/spec/`, in nested folders mirroring the module hierarchy.
-   The free-form markdown body below the frontmatter is prose the schema does not constrain.
+   The free-form markdown body below the frontmatter is prose the schema does not constrain — and it
+   is the **canonical home for behaviour prose**, with the `behaviour` frontmatter field kept as a
+   deprecated fallback (amendment, 2026-07-24).
 2. The `.vousoir/` directory layout is whatever `V6R_SUBDIRS` says. New directories are added there
    first, never invented at a call site.
 3. The `*.v6r` file that `registerCustomEditorProvider` binds to (ADR-001) is a **small project
@@ -342,21 +371,26 @@ technical spec is now operative** — the 2026-07-24 amendment above renames the
 6. `.vousoir/layout.json` sits at the root of `.vousoir/` and is a **file, not a subdirectory**, so it
    is not a `V6R_SUBDIRS` member. `V6R_GITIGNORE_CONTENTS` is `cache/\n`, which does not match it, so
    it is committed by default. Whether that is right is **open** — see open question 7.
+7. **The markdown body is canonical for behaviour prose** — decided 2026-07-24, see the amendment
+   below.
 
 ### Consequences
 
 - Git diffs are per-node. Renaming, re-nesting, or re-specifying one module touches one file.
-- A YAML parser becomes a real dependency at M3 (the spec panel must read and write frontmatter).
-  `PATCHES.md` D7 records that no YAML library is currently a declared dependency of any Vousoir
-  package, and that the golden fixtures are JSON precisely because of that gap — *"When a real spec
-  reader lands in a later work order, it will bring its own YAML dependency and can re-point these
-  fixtures at `.md` files."* M3 is that work order. Adding the dependency touches
-  `vousoir/pnpm-lock.yaml`; do it in one deliberate commit.
+- ~~A YAML parser becomes a real dependency at M3~~ — **it landed in M1, not M3** (`yaml@2.9.0`,
+  PR #12), because the spec store had to read and write frontmatter before the spec panel existed.
+  `PATCHES.md` D7 is closed. Two details survive the correction and are worth keeping straight: the
+  JSON golden fixtures `vousoir/shared/src/fixtures/spec-node-frontmatter.{valid,invalid}.json` were
+  **not** converted and are still JSON — what M1 added was a *separate* real-`.md` tree fixture at
+  `vousoir/shared/src/fixtures/spec-tree/`. Both sets exist; both must grow with the schema.
 - Folder position and the `parent` field can disagree after a hand-edit. **Rule: `parent` wins.** The
   folder tree is a human-navigability convenience; the field is the model. A mismatch should surface
   as a visible warning on the node, not a silent re-parent or a crash.
 - `behaviour` (British) is the shipped field name and stays. Use it verbatim in code; American
   "behavior" is fine in prose and UI labels.
+- Two homes exist for behaviour prose during the deprecation window. Write the precedence rule once —
+  it already exists, as `resolveSpecNodeBehaviour` — and do not re-derive it per consumer. **M3's spec
+  panel must edit the body, not the field**, or it will migrate text the amendment forbids migrating.
 - `contract` is a single optional string today. ADR-008 adds a typed `contracts[]` array beside it
   and keeps the scalar accepted for back-compat.
 - `.vousoir/cache/` is gitignored by the scaffolder (`V6R_GITIGNORED_SUBDIRS`). Nothing that must survive
@@ -1464,8 +1498,9 @@ worktree.
 ## Open questions
 
 All six original questions were **resolved by the user on 2026-07-24** while reviewing PR #11. Each is
-kept with its answer rather than deleted — the reasoning is the part worth having. The ruling generated
-one new question, **#7**, which is the only one still open.
+kept with its answer rather than deleted — the reasoning is the part worth having. Three more were
+generated afterwards: **#7** by the ruling itself, **#8** and **#9** by M1 (PR #12). **Only #7 is still
+open.**
 
 ### 1. Exact work-order scope — **RESOLVED 2026-07-24.** Unblocks M4.
 
@@ -1572,6 +1607,26 @@ Note this is a weaker version of the same argument ADR-002 and ADR-003 use to ke
 frontmatter — but only weaker, not identical: churn confined to one file that nobody reads in review is
 not the same problem as churn in every spec file. That is why the frontmatter rule is settled and this is
 not.
+
+### 8. Is behaviour the markdown body or the frontmatter field? — **RESOLVED: the body is canonical.**
+
+Raised by M1 (PR #12) as open question 7 in `PROGRESS.md`. The shipped schema has a `behaviour`
+frontmatter field while ADR-002 and `ARCHITECTURE.md` §5 describe the body as unconstrained prose —
+both read as "where behaviour lives", and they were not reconcilable as written.
+
+**Answer:** the markdown **body** is canonical; the `behaviour` field is a **deprecated fallback**;
+text is **never silently migrated** between them. Full reasoning in the ADR-002 amendment
+(2026-07-24). Documentation-only — it ratifies what `resolveSpecNodeBehaviour` already does. Settled
+before M3, as M1 asked.
+
+### 9. Was `typings/vousoir/src/v6r-manifest.ts` a dropped M1 deliverable? — **RESOLVED: no, it moves to M2.**
+
+Raised by M1 (PR #12) as open question 8 in `PROGRESS.md`. `ARCHITECTURE.md` §6 listed it under M1;
+the M1 brief did not, and M1 correctly followed the brief.
+
+**Answer:** it belongs to **M2**, which has to answer the `*.v6r` filename question anyway. `ARCHITECTURE.md`
+§6 has been corrected in both milestone rows so it does not read as dropped.
+
 ---
 
 ## Note on patch ledger scope
