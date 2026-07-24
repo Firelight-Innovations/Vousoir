@@ -3,7 +3,7 @@ id: storage
 title: Spec storage
 parent: root
 status: built
-behaviour: Reads and writes one markdown file per node under .v6r/spec/.
+behaviour: Reads and writes one markdown file per node under .vousoir/spec/.
 contracts:
   - id: c-storage-load
     kind: moduleApi

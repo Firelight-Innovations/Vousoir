@@ -1,5 +1,5 @@
 /**
- * Where a node's files live under `.v6r/spec/`, and how to find them all.
+ * Where a node's files live under `.vousoir/spec/`, and how to find them all.
  *
  * The layout is "file beside folder": a node is `<ancestors…>/<id>.md`, and its children
  * live in the sibling directory `<ancestors…>/<id>/`. Nested folders therefore mirror the

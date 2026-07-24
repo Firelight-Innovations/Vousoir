@@ -33,7 +33,7 @@ describe('v6rInit', () => {
 		expect(gitignore).toBe(V6R_GITIGNORE_CONTENTS);
 	});
 
-	it('is idempotent against an existing .v6r/', async () => {
+	it('is idempotent against an existing .vousoir/', async () => {
 		await v6rInit({ repoRoot });
 		const before = (await readdir(join(repoRoot, V6R_ROOT_DIRNAME))).sort();
 

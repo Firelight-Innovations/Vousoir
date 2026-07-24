@@ -11,7 +11,7 @@
 
 import type { SpecNodeFrontmatter } from './spec-node-frontmatter.ts';
 
-/** One spec node as loaded from one `.md` file under `.v6r/spec/`. */
+/** One spec node as loaded from one `.md` file under `.vousoir/spec/`. */
 export interface SpecNode {
 	/** Mirrors `frontmatter.id`. The stable identity; `parent` pointers reference it. */
 	readonly id: string;
@@ -36,7 +36,7 @@ export interface SpecTreeNode extends SpecNode {
 	readonly children: readonly SpecTreeNode[];
 }
 
-/** Every node in a `.v6r/spec/` directory, flat and as a tree. */
+/** Every node in a `.vousoir/spec/` directory, flat and as a tree. */
 export interface SpecTree {
 	/** Every node, keyed by id. */
 	readonly byId: ReadonlyMap<string, SpecNode>;

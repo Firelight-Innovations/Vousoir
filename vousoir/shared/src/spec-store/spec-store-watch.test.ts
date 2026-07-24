@@ -2,7 +2,7 @@
  * Round-trip fidelity across a whole spec directory, and the watcher that makes external
  * edits visible.
  *
- * Both serve the same requirement: the user is allowed to edit `.v6r/spec/` in their own
+ * Both serve the same requirement: the user is allowed to edit `.vousoir/spec/` in their own
  * editor. Vousoir has to notice when they do, and must not rewrite what it did not change.
  */
 

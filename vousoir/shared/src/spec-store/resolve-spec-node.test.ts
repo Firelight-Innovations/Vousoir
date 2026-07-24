@@ -11,7 +11,7 @@ import { resolveSpecNodeBehaviour, resolveSpecNodeContracts } from './resolve-sp
 const BASE: SpecNodeFrontmatter = { id: 'alpha', title: 'Alpha', parent: null, status: 'specified' };
 
 function nodeWith(frontmatter: SpecNodeFrontmatter, body: string): SpecNode {
-	return { id: frontmatter.id, filePath: '/repo/.v6r/spec/alpha.md', frontmatter, body };
+	return { id: frontmatter.id, filePath: '/repo/.vousoir/spec/alpha.md', frontmatter, body };
 }
 
 describe('resolveSpecNodeContracts', () => {

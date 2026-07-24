@@ -9,7 +9,7 @@ import { describe, expect, it } from 'vitest';
 import { parseSpecFile, renderSpecFile } from './spec-file.ts';
 import { SpecStoreError } from './spec-store-error.ts';
 
-const PATH = '/repo/.v6r/spec/alpha.md';
+const PATH = '/repo/.vousoir/spec/alpha.md';
 const HEADER = ['id: alpha', 'title: Alpha', 'parent: null', 'status: specified'].join('\n');
 const SOURCE = `---\n${HEADER}\n---\n\nAlpha does one thing, and says so here.\n`;
 

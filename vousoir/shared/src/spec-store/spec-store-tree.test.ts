@@ -1,5 +1,5 @@
 /**
- * Loading `.v6r/spec/` into a tree, and refusing the shapes a hand-edit can produce.
+ * Loading `.vousoir/spec/` into a tree, and refusing the shapes a hand-edit can produce.
  * Every rejection must name the file at fault — a spec directory is something the user
  * edits directly, so "it broke" is not an acceptable message.
  */
@@ -65,7 +65,7 @@ describe('SpecStore.load', () => {
 		expect(store.tree.byId.get('storage')?.body).toContain('nested folders mirror the hierarchy');
 	});
 
-	it('treats a repo with no .v6r/spec as an empty project rather than an error', async () => {
+	it('treats a repo with no .vousoir/spec as an empty project rather than an error', async () => {
 		const bare = await mkdtemp(join(tmpdir(), 'v6r-bare-'));
 		try {
 			const empty = await SpecStore.open({ repoRoot: bare });
@@ -90,7 +90,7 @@ describe('SpecStore.load rejections', () => {
 			'---\nid: stray\ntitle: Stray\nparent: ghost\nstatus: unspecified\n---\n',
 			'utf8',
 		);
-		await expect(store.load()).rejects.toThrow(/stray\.md[\s\S]*no node under \.v6r\/spec\/ declares that id/);
+		await expect(store.load()).rejects.toThrow(/stray\.md[\s\S]*no node under \.vousoir\/spec\/ declares that id/);
 	});
 
 	it('names both files when two nodes claim the same id', async () => {

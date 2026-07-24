@@ -1,5 +1,5 @@
 /**
- * Watches `.v6r/spec/` for edits made outside Vousoir.
+ * Watches `.vousoir/spec/` for edits made outside Vousoir.
  *
  * This is a product requirement, not a convenience: Portable Spec Files promises the user
  * can edit a spec in their own editor and "the canvas is a convenience, not a cage"
@@ -15,7 +15,7 @@ import { watch, type FSWatcher } from 'node:fs';
 import { join } from 'node:path';
 import { SPEC_FILE_EXTENSION } from './spec-paths.ts';
 
-/** One external edit under `.v6r/spec/`. */
+/** One external edit under `.vousoir/spec/`. */
 export interface SpecStoreChange {
 	/**
 	 * Absolute path of the file that changed, or `undefined` when the platform reported an

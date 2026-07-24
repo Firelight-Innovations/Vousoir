@@ -1,5 +1,5 @@
 /**
- * Test-only helper: seeds a throwaway repo whose `.v6r/spec/` is a copy of the
+ * Test-only helper: seeds a throwaway repo whose `.vousoir/spec/` is a copy of the
  * `spec-tree/` fixture — a three-level tree (root → api → users, root → storage) that
  * deliberately mixes the pre-M1 scalar `contract` with ADR-008 typed `contracts`, and
  * carries a hand-written YAML comment.
@@ -23,7 +23,7 @@ export interface SpecTreeFixture {
 	readonly specDir: string;
 }
 
-/** Creates a temp repo with a scaffolded `.v6r/` and the fixture tree copied into `spec/`. */
+/** Creates a temp repo with a scaffolded `.vousoir/` and the fixture tree copied into `spec/`. */
 export async function seedSpecTreeFixture(): Promise<SpecTreeFixture> {
 	const repoRoot = await mkdtemp(join(tmpdir(), 'v6r-spec-store-'));
 	await v6rInit({ repoRoot });

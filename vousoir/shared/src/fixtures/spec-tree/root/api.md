@@ -10,7 +10,7 @@ contracts:
     body: |
       Request: no body, no query parameters.
       Response: 200, a JSON array of { id, title, parent, status }.
-      Errors: 500 only if .v6r/spec/ cannot be read.
+      Errors: 500 only if .vousoir/spec/ cannot be read.
   - id: c-api-table
     kind: dbSchema
     name: modules
@@ -18,7 +18,7 @@ contracts:
 testCases:
   - id: tc-api-list
     description: listing modules returns the whole tree
-    expected: every node under .v6r/spec/ appears exactly once
+    expected: every node under .vousoir/spec/ appears exactly once
     given: a spec directory holding three nodes
     when: GET /modules is called
     then: the response array has three entries

@@ -3,8 +3,8 @@
  *
  * Shared runtime utilities for the Vousoir layer. Types belong in @vousoir/typings;
  * only runtime helpers live here. Its first real inhabitant is v6rInit(), which
- * scaffolds a well-formed `.v6r/` folder (work order §8, work-package D); the second is
- * the spec store, which reads and writes the module tree in `.v6r/spec/` (ADR-002).
+ * scaffolds a well-formed `.vousoir/` folder (work order §8, work-package D); the second is
+ * the spec store, which reads and writes the module tree in `.vousoir/spec/` (ADR-002).
  */
 
 export { v6rInit } from './v6r-init.ts';

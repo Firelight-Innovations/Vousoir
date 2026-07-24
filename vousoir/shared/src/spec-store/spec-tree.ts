@@ -47,7 +47,7 @@ function indexById(nodes: readonly SpecNode[]): ReadonlyMap<string, SpecNode> {
 		const clash = byId.get(node.id);
 		if (clash !== undefined) {
 			throw new SpecStoreError(
-				`declares id "${node.id}", which ${clash.filePath} already declares. Ids must be unique across .v6r/spec/.`,
+				`declares id "${node.id}", which ${clash.filePath} already declares. Ids must be unique across .vousoir/spec/.`,
 				{ filePath: node.filePath },
 			);
 		}
@@ -61,7 +61,7 @@ function assertParentsResolve(nodes: readonly SpecNode[], byId: ReadonlyMap<stri
 		const parentId = node.frontmatter.parent;
 		if (parentId !== null && !byId.has(parentId)) {
 			throw new SpecStoreError(
-				`names parent "${parentId}", but no node under .v6r/spec/ declares that id. ` +
+				`names parent "${parentId}", but no node under .vousoir/spec/ declares that id. ` +
 					'Fix the `parent:` field, or restore the missing node.',
 				{ filePath: node.filePath },
 			);

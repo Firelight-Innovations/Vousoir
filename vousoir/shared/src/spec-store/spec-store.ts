@@ -1,5 +1,5 @@
 /**
- * Reads and writes the module tree in `.v6r/spec/` — one markdown file per node, YAML
+ * Reads and writes the module tree in `.vousoir/spec/` — one markdown file per node, YAML
  * frontmatter plus a free-form body (ADR-002).
  *
  * It lives in `@vousoir/shared` rather than `vousoir/services/` on purpose. The boundary
@@ -38,7 +38,7 @@ import { specNodeDescendantIds, specNodeIdChain } from './spec-tree-walk.ts';
 
 /** Where the store reads and writes. */
 export interface SpecStoreOptions {
-	/** Absolute path to the repository root. The store owns `<repoRoot>/.v6r/spec/`. */
+	/** Absolute path to the repository root. The store owns `<repoRoot>/.vousoir/spec/`. */
 	readonly repoRoot: string;
 }
 
@@ -68,14 +68,14 @@ export class SpecStore {
 		this.#specDir = specDir;
 	}
 
-	/** Opens `<repoRoot>/.v6r/spec/` and loads it. A missing directory is an empty project. */
+	/** Opens `<repoRoot>/.vousoir/spec/` and loads it. A missing directory is an empty project. */
 	static async open(options: SpecStoreOptions): Promise<SpecStore> {
 		const store = new SpecStore(join(options.repoRoot, V6R_ROOT_DIRNAME, V6R_SUBDIRS.spec));
 		await store.load();
 		return store;
 	}
 
-	/** Absolute path of the watched `.v6r/spec/` directory. */
+	/** Absolute path of the watched `.vousoir/spec/` directory. */
 	get specDir(): string {
 		return this.#specDir;
 	}
@@ -86,7 +86,7 @@ export class SpecStore {
 	}
 
 	/**
-	 * Re-reads every `.md` under `.v6r/spec/`, validates it, and rebuilds the tree from
+	 * Re-reads every `.md` under `.vousoir/spec/`, validates it, and rebuilds the tree from
 	 * `parent` pointers. Throws `SpecStoreError` naming the offending file.
 	 */
 	async load(): Promise<SpecTree> {
@@ -186,7 +186,7 @@ export class SpecStore {
 	}
 
 	/**
-	 * Reports edits made to `.v6r/spec/` outside this store. Writes the store itself makes
+	 * Reports edits made to `.vousoir/spec/` outside this store. Writes the store itself makes
 	 * are suppressed. Calling it again replaces the previous listener.
 	 */
 	watch(onChange: (change: SpecStoreChange) => void, options: SpecStoreWatcherOptions = {}): void {
