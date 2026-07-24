@@ -523,7 +523,8 @@ diagram"*, and `:84` — *"User's intentional manual placement (if any) is **res
 possible**."* The parking lot at `:188` explicitly leaves open *"Auto-layout trigger and override
 behavior (every node add vs. manual trigger, and whether deliberate manual placement should ever be
 silently overridden)."* So: the user must never be *required* to tidy; manual placement is not
-forbidden and its override behaviour is an open question, not a settled rule.
+forbidden and its override behaviour is an open question, not a settled rule. **Settled 2026-07-24 —
+see the amendment above.**
 
 ### Decision
 
@@ -1355,6 +1356,16 @@ the brief is straightforwardly right, and it is the product's core abstraction. 
 `contract?: string` is **kept and accepted** as deprecated back-compat, so every spec file valid today
 stays valid; a reader prefers `contracts[]` when present and falls back to `contract`.
 
+**The contract body is a free-form string per kind** (open question 4, resolved by the user
+2026-07-24). Structured fields — named operations, request/response shapes — are added **later and
+additively**, in this ADR's own style, so no existing spec file is invalidated.
+
+> **Dated commitment (2026-07-24), not a maybe.** That structuring **must land before the milestone
+> that builds Feature 6, "Integration Testing Across Modules"**: agent-run contract integration tests
+> need machine-readable contracts, and a free-form string cannot be checked by a machine. Feature 6 is
+> **deferred out of M1–M6** (see the Deferred table), so this blocks no planned milestone — and it is
+> not optional. **"Before M6" would be the wrong reading**: M6 is the MCP server.
+
 **Extend test cases additively:** add optional `given` / `when` / `then` / `snippet` to
 `specNodeTestCaseSchema`, keeping `description` and `expected` required. Optional zod fields are
 non-breaking by construction.
@@ -1438,7 +1449,7 @@ that a later reader does not mistake their absence for an oversight.
 
 | Feature | Source | Note |
 |---|---|---|
-| **6. Integration Testing Across Modules** | `vousoir-source-of-truth.md:112-121` | Verifies that sibling modules under one parent work together once both are built. Needs M5 dispatch to be routine first. |
+| **6. Integration Testing Across Modules** | `vousoir-source-of-truth.md:112-121` | Verifies that sibling modules under one parent work together once both are built. Needs M5 dispatch to be routine first. **Blocked on a prerequisite recorded 2026-07-24:** `contractSchema`'s body is a free-form string, and agent-run contract integration tests need machine-readable contracts. Structuring it (ADR-008, additively) **must land before this feature is built**. |
 | **7. Traceability View** | `:123-132` | Jump from node → generated code and back. `.vousoir/traces/` (`v6r-layout.ts:20`) already reserves the storage; `vousoir-technical-spec.md:99` drafts `trace_code_to_spec` / `trace_spec_to_code` for the context server. |
 | **8. Contract Linter** | `:134-143` | Checks a built module's real boundary against its declared contract. This is what `verify_contracts` was for (dropped from the ADR-006 surface) and what the module-API / service-API / DB-schema contract split at `:186` is for. |
 | **11. Frontend/UX Whiteboard Mode** | `:166-175` | A separate freeform canvas. **Space is already reserved:** `V6R_SUBDIRS.whiteboards` exists in `typings/vousoir/src/v6r-layout.ts:18` (*"Frontend/UX canvases"*) and is in `V6R_COMMITTED_SUBDIRS`, so `v6rInit()` scaffolds `.vousoir/whiteboards/` today. `vousoir-technical-spec.md:125` earmarks *"tldraw or equivalent"*, undecided. |
@@ -1452,70 +1463,115 @@ worktree.
 
 ## Open questions
 
-Ranked by how much later work they block. Each carries a proposed resolution; none is settled.
+All six original questions were **resolved by the user on 2026-07-24** while reviewing PR #11. Each is
+kept with its answer rather than deleted — the reasoning is the part worth having. The ruling generated
+one new question, **#7**, which is the only one still open.
 
-### 1. Exact work-order scope — immediate spec only, + ancestors, or + contracted neighbours?
+### 1. Exact work-order scope — **RESOLVED 2026-07-24.** Unblocks M4.
 
-`vousoir-source-of-truth.md:185` leaves this open: *"Exact contents of a compiled work order
+`vousoir-source-of-truth.md:185` left this open: *"Exact contents of a compiled work order
 (immediate spec only vs. spec + all ancestor context vs. spec + directly-contracted neighbor
-specs)."* It gates M4 and is the single decision that most affects whether generated code is correct.
+specs)."* It gated M4 and is the single decision that most affects whether generated code is correct.
 
-**Proposed:** the node's **own full spec** (behaviour, contract, all test cases, markdown body), plus
-the **contracts only** of its full ancestor chain, plus the **contracts only** of directly-contracted
-siblings. Not the ancestors' behaviour, not the siblings' test cases. Rationale: it is exactly what
-`vousoir-technical-spec.md:93` specifies for the work-order compiler — *"spec + contracts + tests +
-neighbor/ancestor context"* — and it matches the product thesis: an implementer needs to know its own
-substance and its neighbours' *edges*. Sending neighbours' internals would contradict the name.
-Bounded by construction, so a deep tree does not produce an unbounded prompt.
+**Answer.** A work order contains exactly three tiers:
 
-### 2. Should the `*.v6r` manifest be YAML or JSON?
+| Tier | What is included | What is excluded |
+|---|---|---|
+| The node itself | Its **full spec** — `behaviour`, every contract, every test case, and the markdown body. | — |
+| Its ancestors (full chain to the root) | **Behaviour summaries only.** | Their contracts, test cases, and bodies. |
+| Its directly-contracted neighbours | **Contract blocks only.** | Behaviour, test cases, body — **never neighbour internals.** |
 
-**Proposed: JSON.** Three reasons. (a) No YAML parser is a declared dependency of any Vousoir package
-today (`PATCHES.md` D7), and `JSON.parse` needs none — the manifest can ship in M1 while the YAML
-dependency waits for M3. (b) The manifest is machine-written config, not prose; Feature 10's
-portability promise is about *specs*, which stay markdown + YAML regardless. (c) zod validates a
-parsed JSON object directly, consistent with *"the schema is the contract"*
-(`vousoir-technical-spec.md:153`). Cheap to revisit: once M3 brings a YAML parser, converting a
-five-field manifest is trivial.
+**Rationale, in the user's terms:** *"contracts, not substance" applies to the work order itself.* The
+same principle the product applies to modules applies to what an agent is handed — an implementer gets
+its own substance, its ancestors' intent, and its neighbours' edges, and nothing more.
 
-### 3. Does a `*.v6r` file collide with the `.vousoir/` directory?
+This **differs from the proposal this section originally carried**, which gave the ancestors' *contracts*.
+The ruling gives their **behaviour summaries** instead: an ancestor's contract is with the world outside
+the subtree and is not what a child needs; what a child needs is what the parent is *for*. Bounded by
+construction either way, so a deep tree cannot produce an unbounded prompt. The compiler's specification
+is in `ARCHITECTURE.md` §6 M4.
 
-`V6R_ROOT_DIRNAME = '.v6r'` is a **directory** at the repo root; ADR-001 binds a custom editor to a
-`*.v6r` **file** glob. A file literally named `.v6r` would be ambiguous, and `filenamePattern:
-"*.v6r"` may or may not match a dotfile with an empty stem depending on the matcher.
+### 2. `*.v6r` manifest format — **RESOLVED 2026-07-24: JSON**, as proposed.
 
-**Proposed:** require a non-empty stem — the manifest is `<project-name>.v6r` — and use a
-`filenamePattern` that cannot match a bare `.v6r`. Decide and test this in M2, before any `.v6r` file
-exists in a user repo, because changing it afterwards breaks every existing project.
+Three reasons, unchanged from the proposal. (a) No YAML parser is a declared dependency of any Vousoir
+package today (`PATCHES.md` D7), and `JSON.parse` needs none — the manifest can ship in M1 while the YAML
+dependency waits for M3. (b) The manifest is machine-written config, not prose; Feature 10's portability
+promise is about *specs*, which stay markdown + YAML regardless. (c) zod validates a parsed JSON object
+directly, consistent with *"the schema is the contract"* (`vousoir-technical-spec.md:153`).
 
-### 4. ~~One `contract` string, or three typed contracts?~~ — resolved by ADR-008
+### 3. `*.v6r` file vs the `.v6r/` directory — **RESOLVED 2026-07-24: rename the directory to `.vousoir/`.**
 
-Resolved: add a typed `contracts[]` with `kind: moduleApi | serviceApi | dbSchema` and keep the
-existing scalar `contract` accepted as deprecated back-compat. What remains open is smaller — whether
-`contractSchema`'s body is a single free-form string per contract or something more structured
-(named operations, request/response shapes). **Proposed:** free-form string body for M1; structure it
-only when the contract linter needs to parse it, which is deferred with Feature 8.
+`V6R_ROOT_DIRNAME` was a **directory** named `.v6r`; ADR-001 binds a custom editor to a `*.v6r` **file**
+glob. A file literally named `.v6r` would have been ambiguous, and `filenamePattern: "*.v6r"` may or may
+not match a dotfile with an empty stem depending on the matcher.
 
-### 5. Should manual node placement be supported, and may auto-layout override it?
+**Answer:** keep the `*.v6r` manifest **file** extension; rename the **directory** to `.vousoir/`. This
+removes the collision at its source rather than working around it with a stem rule, and it re-aligns the
+code with `vousoir-technical-spec.md:132`, which named the folder `.vousoir/` all along. Recorded as a
+dated amendment on ADR-002; the rename lands with M1, as planned, before M2.
 
-`vousoir-source-of-truth.md:84` asks for manual placement to be *"respected where reasonably
-possible"*; `:188` leaves the override semantics explicitly undecided; `:86` insists auto-layout *"has
-to work invisibly"*.
+### 4. `contractSchema` body — **RESOLVED 2026-07-24: free-form string per kind now, structured later.**
 
-**Proposed:** M2 ships pure auto-layout with nothing persisted, and no drag-to-place. Revisit after
-the founder has used a real tree — the answer depends on whether manual placement is actually wanted
-once layout is good. Whatever the answer, positions go in `.vousoir/cache/` and never in spec frontmatter
-(ADR-003, ADR-008); since `cache` is the one gitignored subdir, deferring locks no file format and
-costs no git churn.
+ADR-008 settled the outer shape: a typed `contracts[]` with `kind: moduleApi | serviceApi | dbSchema`,
+with the scalar `contract` kept as deprecated back-compat. What remained open was the body.
 
-### 6. Field spelling: `behaviour` vs `behavior`
+**Answer:** a free-form string body per kind for now. Structured fields (named operations,
+request/response shapes) are added **later and additively**, in the ADR-008 style that keeps every
+existing spec file valid.
 
-The shipped schema uses British `behaviour`; every product document uses American "behavior". A
-rename is a breaking schema change for a cosmetic gain.
+> **Dated commitment, not a maybe.** The structuring **must land before the milestone that builds
+> Feature 6, "Integration Testing Across Modules"** (`vousoir-source-of-truth.md:112-121`), because
+> agent-run contract integration tests need machine-readable contracts. A free-form string cannot be
+> checked by a machine, so that feature cannot be built on top of one.
+>
+> **Do not read this as "before M6."** M6 is the MCP server. Feature 6 is integration testing, and it is
+> **deferred out of M1–M6** entirely (see the Deferred table above). The deadline is that deferred work,
+> whenever it is scheduled — which means the structuring is not blocking any milestone currently planned,
+> and is also not optional.
 
-**Proposed:** keep `behaviour` as the wire/field name — it is shipped and tested — and use "Behavior"
-in UI labels and prose. Note it once in the M3 spec-panel code so nobody "fixes" it.
+### 5. Manual node placement and auto-layout override — **RESOLVED 2026-07-24: supported, with explicit auto-tidy.**
 
+`vousoir-source-of-truth.md:84` asked for manual placement to be *"respected where reasonably possible"*;
+`:188` left the override semantics explicitly undecided; `:86` insisted auto-layout *"has to work
+invisibly"*.
+
+**Answer:** full manual placement is supported. Auto-layout runs as an **explicit auto-tidy command** and
+**must never silently override** a user's placement. Positions therefore move out of the wipeable
+`.vousoir/cache/` into `.vousoir/layout.json`. Positions still never go in spec frontmatter.
+
+**This overrules `:86` and the M2 brief.** See the ADR-003 amendment (2026-07-24), which records what was
+superseded, what survives, and the fact that `vousoir-source-of-truth.md` Feature 3 is now stale.
+
+### 6. Field spelling: `behaviour` vs `behavior` — **RESOLVED 2026-07-24: `behaviour` stays.**
+
+The shipped schema uses British `behaviour`; every product document uses American "behavior". Renaming
+would break committed, tested files and violate ADR-008's own rule against cosmetic churn on cross-package
+identifiers. Keep `behaviour` as the wire/field name; use "Behavior" in UI labels and prose. Note it once
+in the M3 spec-panel code so nobody "fixes" it.
+
+### 7. Is `.vousoir/layout.json` gitignored or committed? — **OPEN.** Deferred by the user, 2026-07-24.
+
+Generated by the resolution of question 5. The user deferred it deliberately; **do not decide it by
+accident.**
+
+**The live consequence, today:** `V6R_GITIGNORE_CONTENTS` is `` `${V6R_SUBDIRS.cache}/\n` `` — it ignores
+`cache/` and nothing else. `layout.json` is a file at the root of `.vousoir/`, not a `V6R_SUBDIRS` member,
+so nothing matches it and it is **committed by default unless someone acts.** Whoever implements M2 will
+get the committed behaviour whether or not they intended to.
+
+**The trade-off, both directions real:**
+
+- **Committed** — a collaborator cloning the repo gets the canvas as the author arranged it, which is
+  what `v6r-layout.ts`'s own docblock promises (*"a collaborator cloning the repo sees the full project
+  state with no external database"*). Cost: node positions churn in git diffs on every drag, and two
+  people moving the same node conflict in a file that has no meaningful merge.
+- **Gitignored** — spec diffs stay clean and nothing can conflict. Cost: a collaborator clones the repo
+  and gets an unpositioned canvas, and the author's arrangement is local-only and lost on a fresh clone.
+
+Note this is a weaker version of the same argument ADR-002 and ADR-003 use to keep positions out of spec
+frontmatter — but only weaker, not identical: churn confined to one file that nobody reads in review is
+not the same problem as churn in every spec file. That is why the frontmatter rule is settled and this is
+not.
 ---
 
 ## Note on patch ledger scope

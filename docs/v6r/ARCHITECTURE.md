@@ -370,6 +370,11 @@ the shared `vousoir/pnpm-lock.yaml`. Do it in one deliberate commit.
 **Changed by recon:** the brief specified `src/vs/workbench/contrib/vousoir/common/vousoirModel.ts`
 and a `ModuleNode` type. Both dropped — the model lives in `@vousoir/typings` and extends the existing
 schema (ADR-001, ADR-008). `position` and `children` dropped.
+**Changed by the 2026-07-24 ruling:** `V6R_ROOT_DIRNAME`'s **value** becomes `'.vousoir'` (ADR-002
+amendment). The symbol keeps its name, as do `V6R_SUBDIRS`, `V6R_COMMITTED_SUBDIRS`,
+`V6R_GITIGNORED_SUBDIRS` and `V6R_GITIGNORE_*`; so do the filenames `v6r-layout.ts` and `v6r-init.ts`.
+The `*.v6r` manifest extension is unchanged, and the manifest is **JSON** (open question 2). Doing the
+rename in M1 is what keeps M2 from having to migrate a directory that already exists in a user repo.
 
 ### M2 — Canvas custom editor + auto-layout
 
@@ -408,11 +413,31 @@ than one text box, per ADR-008.
 ### M4 — Work-order compiler
 
 **Creates:** `vousoir/shared/src/work-order/compile.ts` + template.
-**Acceptance:** a fully-specified node compiles to self-contained markdown; the compiler is a pure
-function with unit tests; output is reviewable before dispatch.
-**Risk:** scope. `ADR.md` open question 1 proposes: node's own full spec + **contracts only** of the
-ancestor chain + **contracts only** of directly-contracted siblings. Confirm with the user before
-building — this most affects whether generated code is correct.
+
+**Scope — settled 2026-07-24 (`ADR.md` open question 1). This is the compiler's specification.** A work
+order for node *N* contains exactly three tiers and nothing else:
+
+| Tier | Nodes | Fields emitted |
+|---|---|---|
+| 1 | *N* itself | **Full spec**: `behaviour`, every entry in `contracts[]` (or the legacy scalar `contract`), every `testCases[]` entry, and the markdown body. |
+| 2 | *N*'s ancestor chain, root-most first, up to *N*'s parent | **Behaviour summary only.** Not their contracts, not their test cases, not their bodies. |
+| 3 | *N*'s directly-contracted neighbours | **Contract blocks only** — the `contracts[]` entries that bind them to *N*. **Never** their behaviour, test cases, or body. |
+
+A node is a "directly-contracted neighbour" if a contract link exists between it and *N*; containment
+alone does not qualify a sibling. Tier 3 is a **hard boundary: neighbour internals never enter a work
+order.** Rationale, in the user's terms: *"contracts, not substance" applies to the work order itself* —
+the principle the product applies to modules applies to what an agent is handed. Bounded by construction,
+so a deep tree cannot produce an unbounded prompt.
+
+Note tier 2 is **behaviour summaries, not contracts** — this is where the ruling departs from the
+proposal the ADR originally carried. An ancestor's contract is with the world outside the subtree; what a
+child needs to know is what its parent is *for*.
+
+**Acceptance:** a fully-specified node compiles to self-contained markdown; each of the three tiers is
+covered by a unit test, including a negative one asserting a neighbour's `behaviour` and `testCases`
+never appear in the output; the compiler is a pure function; output is reviewable before dispatch.
+**Risk:** tier-3 leakage — the easy bug is emitting a neighbour's whole spec because it was already
+loaded. Test for absence, not just presence.
 
 ### M5 — Dispatch to Claude Code
 
@@ -439,6 +464,13 @@ scale; do not build a lock. Also `types: []` — MCP payload schemas in `typings
 + zod, and the SDK can never be imported there (`typings-only-imports-zod`).
 **Changed by recon:** stands alone; does **not** extend the service-host protocol, which says of
 itself *"This is NOT MCP"* (ADR-006). Three drafted tool lists merged into one surface of nine.
+**Carries a deadline set 2026-07-24:** `get_contracts` returns a **free-form string** body per contract
+kind (`ADR.md` open question 4). Structuring that body — additively, ADR-008 style — **must land before
+the milestone that builds Feature 6, "Integration Testing Across Modules"**, because agent-run contract
+integration tests need machine-readable contracts. **That deadline is not M6.** Feature 6 is integration
+testing and is deferred out of M1–M6; M6 is this MCP server. Nothing here blocks M6 — but if you are
+building M6 and the contract body is still a string, the debt is still outstanding and it is yours to
+hand on.
 
 ---
 
@@ -465,8 +497,8 @@ itself *"This is NOT MCP"* (ADR-006). Three drafted tool lists merged into one s
 | R2 | **Missing `ELECTRON_RUN_AS_NODE` in M5** — silently launches an Electron instance; no plain-Node test can catch it | Assert the env var in the spawn options in a unit test **and** verify once by hand in the real shell (`PATCHES.md:276`). |
 | R3 | **ADR-003 overrules a made Stage 3 decision** (React Flow + ELK) | **Approved 2026-07-24 with a revisit trigger**: contract links create cross-edges the strict-tree argument does not cover, so reconsider a routing library once the canvas renders contract edges *and* hand-rolled routing is ugly — not before. Still reversible behind the same pure-function signature. |
 | R9 | **Feature 3 is stale and says the opposite of ADR-003** — it forbids a manual "clean up" action (`vousoir-source-of-truth.md:86`); the 2026-07-24 ruling requires exactly that | Follow the ADR-003 amendment, not Feature 3. `vousoir-source-of-truth.md` needs its author's edit; until then the two documents disagree and the ADR is operative. |
-| R4 | **Work-order scope is unresolved** and gates M4's correctness | `ADR.md` open question 1 has a proposed resolution. Get the user's call before building M4. |
-| R5 | **`*.v6r` filename collides with the `.vousoir/` directory** | Decide the `filenamePattern` in M2, **before** any user repo contains a `.v6r` file. `ADR.md` open question 3. |
+| R4 | ~~**Work-order scope is unresolved** and gates M4's correctness~~ | **RESOLVED 2026-07-24.** Three tiers, specified in §6 M4. Residual risk is implementation, not scope: tier-3 leakage of neighbour internals. Test for absence. |
+| R5 | ~~**`*.v6r` filename collides with the `.v6r/` directory**~~ | **RESOLVED 2026-07-24** by renaming the directory to `.vousoir/` (ADR-002 amendment). The manifest keeps its `*.v6r` extension; one name now means one thing, so no `filenamePattern` stem rule is needed. Lands with M1, before any user repo contains either. |
 | R6 | **Worktree dependency drift** — two branches, one `node_modules` | Any lockfile change is stop-the-world. Re-verify both branches. |
 | R7 | **Two writers to `.vousoir/spec/`** in M6 (canvas + MCP) | Plain files, per-file last-write-wins, file watcher on the canvas side. No lock. |
 | R8 | **Schema fork** — a second model type shadowing `@vousoir/typings` | ADR-008 forbids it. Note `PATCHES.md` A3: dependency-cruiser **cannot** catch duplicate declarations — this is a review rule, so it needs human attention on every PR. |
