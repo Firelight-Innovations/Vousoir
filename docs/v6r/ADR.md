@@ -339,9 +339,9 @@ technical spec is now operative** — the 2026-07-24 amendment above renames the
 5. Node **positions are never written to spec frontmatter**. They live in `.vousoir/layout.json` —
    see the ADR-003 amendment (2026-07-24), which moved them out of the wipeable `.vousoir/cache/`
    once manual placement made them user-authored data. The frontmatter rule is unchanged.
-6. `.vousoir/layout.json` is a **sixth entry under `.vousoir/`, and it is a file, not a subdirectory** —
-   so it is not a `V6R_SUBDIRS` member. `V6R_GITIGNORE_CONTENTS` is `cache/\n`, which does not match
-   it, so it is committed by default. Whether that is right is **open** — see open question 7.
+6. `.vousoir/layout.json` sits at the root of `.vousoir/` and is a **file, not a subdirectory**, so it
+   is not a `V6R_SUBDIRS` member. `V6R_GITIGNORE_CONTENTS` is `cache/\n`, which does not match it, so
+   it is committed by default. Whether that is right is **open** — see open question 7.
 
 ### Consequences
 
