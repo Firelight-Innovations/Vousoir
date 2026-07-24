@@ -27,3 +27,6 @@ export * from './trace-event.ts';
 
 // Spec-tree node frontmatter schema for `.v6r/spec/**/*.md` (work order §8).
 export * from './spec-node-frontmatter.ts';
+
+// The loaded-node and assembled-tree shapes the spec store returns (ADR-002, ADR-008).
+export * from './spec-node.ts';
