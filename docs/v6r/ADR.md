@@ -45,7 +45,7 @@ files are *not* core patches"* — it needs no `PATCHES.md` entry, even though `
 | ADR-002 | Specs are markdown + YAML frontmatter under `.vousoir/spec/`; `*.v6r` is a thin manifest | Accepted · **amended ×2, 2026-07-24** | Ratify the shipped `specNodeFrontmatterSchema` and `V6R_SUBDIRS`; the `*.v6r` file the editor binds to is a small project manifest, not the model. **Amended:** the directory is `.vousoir/`, not `.v6r/`; and the markdown **body** is canonical for behaviour prose, with the `behaviour` field a deprecated fallback. |
 | ADR-003 | Hand-roll recursive tree layout; no ELK or dagre | Accepted · **amended 2026-07-24** | ~150 lines of recursive nested-box layout, no layout library — the model is a strict tree, not a general graph. **Amended:** manual placement is supported, auto-layout is an explicit auto-tidy command, positions live in `.vousoir/layout.json`. **Supersedes Feature 3's auto-layout-on-every-mutation.** |
 | ADR-004 | Ship webview assets as extension files via `asWebviewUri` | Accepted | Canvas JS/CSS are real files under `media/`, loaded through `asWebviewUri` + `localResourceRoots` under a nonce CSP. No CDN, no network. |
-| ADR-005 | Dispatch Claude Code from the extension host via `child_process` | Accepted | M5 spawns `claude -p …` from extension-host Node code with `ELECTRON_RUN_AS_NODE=1`; no new IPC service. |
+| ADR-005 | Dispatch Claude Code from the extension host via `child_process` | Accepted · **amended 2026-07-24** | M5 spawns `claude --print …` with `ELECTRON_RUN_AS_NODE=1`, work order on **stdin**; no new IPC service. **Amended:** run status is transient and in-memory, **not** the frontmatter enum. |
 | ADR-006 | The MCP server is a standalone stdio node script, not in-process | Accepted | M6 ships `vousoir/services/spec-mcp/` as its own package with its own `main.ts`, launched by an external `claude` via `claude mcp add`; nine tools over `.vousoir/spec/`. |
 | ADR-007 | Develop in a git worktree with junctioned dependencies | Accepted (debt) | Work in `../vousoir-v6r` on `v6r/mvp`; `node_modules` and `build/node_modules` are junctions, `out/` is a real copy. Time-boxed debt with a documented undo — and it has already broken one build command. |
 | ADR-008 | Extend the existing spec-node schema; never fork it | Accepted | M1 adds typed `contracts[]` and given/when/then test fields to `specNodeFrontmatterSchema` in place; it does not introduce a parallel `ModuleNode` type, and it does not add `position`. |
@@ -780,16 +780,18 @@ at build time or run time.
 
 ## ADR-005 — Dispatch Claude Code from the extension host via `child_process`
 
-**Status:** Accepted (2026-07-24)
-**Deciders:** orchestrating agent, pending user review
+**Status:** Accepted (2026-07-24) — **amended 2026-07-24** (transient run status; prompt via stdin)
+**Deciders:** orchestrating agent; amended after M5 shipped (PR #14)
 
 ### Context
 
 M5 hands a compiled work order to a coding agent and reflects the result on the canvas —
 `vousoir-source-of-truth.md` Feature 5: *"Node on the canvas visually reflects its status (spec'd →
 building → built)"* and *"the canvas should stay the single place the user looks at to understand the
-state of the whole project."* The node status enum already models this:
-`specNodeStatusSchema` = `unspecified | specified | building | built | verified`.
+state of the whole project."* The node status enum appears to model this:
+`specNodeStatusSchema` = `unspecified | specified | building | built | verified`. **The amendment below
+rejects that reading** — dispatch drives a transient run status and writes no spec file; whether a
+completed run should persist `built` is left open.
 
 Extension-host code is Node and can `require('node:child_process')`. Renderer and core workbench code
 cannot. Since ADR-001 puts the canvas in an extension anyway, dispatch is a direct `spawn` from code
@@ -825,17 +827,54 @@ M5 dispatches by spawning the `claude` CLI **directly from extension-host code**
 `node:child_process`:
 
 ```ts
-spawn('claude', ['-p', workOrder, '--permission-mode', 'acceptEdits'], {
+// The work order goes to STDIN, never argv — see the amendment below.
+const child = spawn('claude', [
+  '--print', '--input-format', 'text', '--output-format', 'stream-json',
+  '--verbose', '--permission-mode', 'acceptEdits',
+], {
   cwd: workspaceRoot,
   env: { ...process.env, [ELECTRON_RUN_AS_NODE_ENV_VAR]: '1' },
   stdio: ['pipe', 'pipe', 'pipe'],
   windowsHide: true,
-})
+});
+child.stdin.end(workOrder);
 ```
 
-stdout and stderr stream to the "Vousoir" `OutputChannel` and drive node status transitions
-`specified → building → built | failed`. No new IPC service, no shared-process contribution, no
-workbench-side dispatch path.
+stdout and stderr stream to the "Vousoir" `OutputChannel` and drive a **transient run status**. No new
+IPC service, no shared-process contribution, no workbench-side dispatch path.
+
+### Amendment (2026-07-24) — run status is transient; the prompt goes to stdin
+
+**1. Run status is in-memory and event-only. It is not the frontmatter enum.** This ADR originally
+said dispatch drives *"`specified → building → built | failed`"* — those are `specNodeStatusSchema`
+values, which live in a **committed spec file**. Nothing in M5 writes a spec file. The transient run
+status is `DispatchRunStatus = 'idle' | 'running' | 'done' | 'failed'`
+(`typings/vousoir/src/dispatch.ts:14`); **cancellation is not a fifth value** — a cancelled run settles
+as `failed` with `cancelled: true` on the result.
+
+The reason is recoverability: a crashed or cancelled run that had written `building` into a committed
+`.md` would leave that file stuck in a lie, with nothing to distinguish it from a run still in flight.
+Transient status cannot get stuck, because it does not survive the process.
+
+**Deliberately not decided:** whether a *successful* run should persist `built` to the spec file. M5
+raised it rather than settling it — the trace already records what happened, and whether `built` means
+*"an agent claimed success"* or *"the tests actually pass"* is Feature 6 / Feature 8 territory.
+
+**2. The work order goes to stdin, never argv.** `--input-format text` under `--print` makes the CLI
+read its prompt from stdin. Passing it as an argv positional works until it does not: **Windows caps a
+command line at ~32,768 characters**, and a work order carrying several contracts plus ancestor and
+neighbour context reaches that easily. The failure mode is a truncated or rejected prompt at some
+unpredictable spec size. **Do not "simplify" this back to `['-p', workOrder]`.**
+
+**3. Only `ELECTRON_RUN_AS_NODE` is set — not `PARENT_PID_ENV_VAR`.** The parent-pid watchdog exists so
+a long-lived **supervised service** self-exits when orphaned. `claude` is a **short-lived job**, and a
+run that is already writing files should be allowed to finish even if the editor closes. Both spawn
+snippets in these docs now agree on this.
+
+**4. `--verbose` is required** alongside `--print --output-format stream-json` in Claude CLI
+**2.1.219**. Without it the CLI rejects the combination. Harmless if a future version drops the
+requirement — but it is a **version coupling**, and the symptom on upgrade is an empty trace, which
+does not point at its own cause. See debt D12.
 
 **`ELECTRON_RUN_AS_NODE: '1'` is set on every spawn. This is not optional.**
 
@@ -909,7 +948,10 @@ silent"*).
   'pipe', 'pipe'], windowsHide: true })`
 - `extensions/vousoir-core/src/service-host/service-host-process.ts:121-134` — the graceful-then-kill
   disposal ladder to copy.
-- `typings/vousoir/src/spec-node-frontmatter.ts:15` — the `building | built` states dispatch drives.
+- `typings/vousoir/src/spec-node-frontmatter.ts:15` — the `building | built` states. **Dispatch does
+  not drive these** (amendment): they are committed spec-file values; run status is transient.
+- `typings/vousoir/src/dispatch.ts:14` — `export type DispatchRunStatus = 'idle' | 'running' | 'done' |
+  'failed';` — the transient enum, with cancellation carried as `cancelled: true` on the result.
 - `vousoir-source-of-truth.md:107` — *"Node on the canvas visually reflects its status (spec'd →
   building → built)."*
 - `vousoir-technical-spec.md:111` — *"**Claude Code adapter (v1):** drives the `claude` CLI. Two

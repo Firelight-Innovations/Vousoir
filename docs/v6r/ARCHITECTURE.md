@@ -260,15 +260,31 @@ HTML-builder function, not at module scope.
 
 ```ts
 import { spawn } from 'node:child_process';
-import { ELECTRON_RUN_AS_NODE_ENV_VAR, PARENT_PID_ENV_VAR } from '@vousoir/typings';
+import { ELECTRON_RUN_AS_NODE_ENV_VAR } from '@vousoir/typings';
 
-spawn('claude', ['-p', workOrder, '--permission-mode', 'acceptEdits'], {
+const child = spawn('claude', [
+  '--print', '--input-format', 'text', '--output-format', 'stream-json',
+  '--verbose', '--permission-mode', 'acceptEdits',
+], {
   cwd: workspaceRoot,
-  env: { ...process.env, [ELECTRON_RUN_AS_NODE_ENV_VAR]: '1', [PARENT_PID_ENV_VAR]: String(process.pid) },
+  env: { ...process.env, [ELECTRON_RUN_AS_NODE_ENV_VAR]: '1' },
   stdio: ['pipe', 'pipe', 'pipe'],
   windowsHide: true,
 });
+child.stdin.end(workOrder);   // NEVER argv — see below
 ```
+
+**The work order goes to stdin, not argv.** Windows caps a command line at **~32,768 characters**, and
+a work order with several contracts plus neighbour context clears that easily — so `['-p', workOrder]`
+truncates or rejects prompts at some unpredictable spec size. `--input-format text` under `--print`
+makes the CLI read stdin instead, which has no such limit. **Do not "simplify" this back.**
+
+**Only `ELECTRON_RUN_AS_NODE` is set — deliberately not `PARENT_PID_ENV_VAR`.** The parent-pid watchdog
+is for long-lived **supervised services** that must self-exit when orphaned. `claude` is a **short-lived
+job**, and a run already writing files should be allowed to finish even if the editor closes.
+
+**`--verbose` is required** with `--print --output-format stream-json` in Claude CLI **2.1.219** (debt
+D12).
 
 **`ELECTRON_RUN_AS_NODE: '1'` is mandatory on every spawn** (`vousoir/PATCHES.md:271`). Under the
 extension host `process.execPath` is the Electron binary. **A plain-Node unit test cannot catch its
@@ -514,15 +530,49 @@ command should warn or refuse. A forward dependency on M3, not an open question.
 
 ### M5 — Dispatch to Claude Code
 
-**Creates:** `extensions/vousoir-core/src/dispatch/` (spawn, stream, status).
-**Acceptance:** dispatch a compiled work order → node status moves `specified → building →
-built|failed`; stdout/stderr stream to the "Vousoir" output channel; `claude` absent from PATH fails
-loudly and leaves status unchanged.
+**Created** (actual, PR #14): the dispatch **engine** in `vousoir/shared/src/dispatch/` —
+`claude-cli.ts`, `dispatch-work-order.ts`, `claude-stream-mapper.ts`, `trace-writer.ts`. The extension
+holds only `extensions/vousoir-core/src/dispatch/build-with-claude-command.ts`, the command that needs
+the editor.
+**Acceptance:** dispatch a compiled work order → transient run status moves `idle → running →
+done|failed`; stdout/stderr stream to the "Vousoir" output channel; `claude` absent from PATH fails
+loudly with an actionable message; a JSONL trace lands under `.vousoir/traces/`.
 **Risk:** **`ELECTRON_RUN_AS_NODE`** — no plain-Node test catches its absence. Second: `--permission-mode
 acceptEdits` writes to the user's workspace (per-run worktree isolation is post-M6). Warn in the UI
 before the first dispatch.
 **Changed by recon:** no IPC service and no shared-process work — the extension host is already Node
 (ADR-005). Removes an entire subsystem from the original design.
+
+**The engine lives in `@vousoir/shared`, not the extension — and this is a general rule.**
+`extensions/vousoir-core` has **no test runner**, and cannot cheaply get one while it imports `vscode`.
+A dispatcher built there would be untestable, which would make the milestone gate meaningless. **The
+extension keeps only what genuinely needs the editor**; everything else goes to `@vousoir/shared` where
+it can be tested. **This applies to M6 too.**
+
+**Run status is transient — see the ADR-005 amendment.** `DispatchRunStatus` is
+`'idle' | 'running' | 'done' | 'failed'`, in memory and event-only; cancellation settles as `failed`
+with `cancelled: true`, **not** a fifth status. Nothing writes a spec file. Whether a *successful* run
+should persist `built` is deliberately **undecided**.
+
+**Traces reuse `traceEventSchema` unchanged** — it already modelled everything needed. Lines are
+appended **one at a time**, so a crash leaves a readable trace rather than a truncated buffer, and each
+line is **schema-validated before queueing**, so "one valid JSON object per line" is enforced rather
+than hoped for.
+
+> **Known modelling gap, not a defect today.** `traceEventSchema` has no event kind for **raw agent
+> output**, so an unrecognised `stream-json` line becomes `{ type: 'message', role: 'system' }`. That
+> is lossless — nothing is dropped — but `role: 'system'` now does two jobs: genuine harness output,
+> and a line the mapper could not classify. **If M6's trace viewer must tell them apart**, the fix is
+> an additive kind (ADR-008 style, no migration): add a `raw` variant to the discriminated union and
+> map unclassified lines to it. Nothing needs to change before then.
+
+**`ELECTRON_RUN_AS_NODE` is verified three ways**, because no plain-Node test can see its absence —
+under vitest `process.execPath` already *is* node. (1) a pure `claudeSpawnOptions` function reachable
+without spawning, so the options object itself can be asserted on; (2) a test that the var survives
+into the real `spawn` call; (3) the live smoke run.
+
+**The Claude Code VS Code extension path was deliberately skipped.** The CLI path is solid and now
+verified live; a second dispatch path doubles the surface for no capability the primary lacks.
 
 ### M6 — MCP server
 
@@ -564,6 +614,8 @@ and converge here. **Settle both before building this milestone, and land them t
 | D5 | ~~**No YAML dependency** anywhere in the Vousoir layer (`PATCHES.md` D7)~~ | — | **CLOSED by M1** (PR #12): `yaml@2.9.0`. The JSON frontmatter goldens were kept; a real `.md` tree fixture was added beside them. |
 | D9 | **`vousoir/PATCHES.md:63` and `vousoir/HANDOFF.md:183` still say `.v6r/`** | Looks like a missed rename. It is not. | **Ruled 2026-07-24: leave them.** Both are historical records — a ledger row describing a past README rewrite, and a completed acceptance-test checklist. They accurately describe what was true when written, and rewriting a record of the past to match the present is how a ledger stops being trustworthy. **Do not "fix" these.** |
 | D10 | **`vousoir-technical-spec.md:93` permits a contract leak, read literally** | It specifies the work-order output as *"spec + contracts + tests + neighbor/ancestor context"* **without saying whose**. Read literally that allows emitting a neighbour's test cases — precisely the leak the product must not have. The code does the right thing; the spec does not say so. | **The user must make this edit — do not edit that file.** One clause fixes it: *"…the node's **own** spec, contracts and tests, plus neighbour/ancestor context as **contracts only**."* Same standing as Feature 3 (R9): a user-owned product document that the ADRs cannot amend. |
+| D11 | **Cancellation kills the direct child only** | If `claude` spawns grandchildren that survive the parent's `SIGKILL`, they are not reaped and keep writing to the user's workspace after the run reads as cancelled. | Process-group kill (`taskkill /T` on Windows, `kill(-pgid)` elsewhere). **Deliberately not built:** the failure could not be observed, and guessing at process-tree semantics is how you ship a killer that kills the wrong thing. Build it when it is reproducible. |
+| D12 | **`--verbose` is required by Claude CLI 2.1.219** alongside `--print --output-format stream-json` | A version coupling. If a future CLI drops the requirement the flag is harmless — but if the *contract* changes, the symptom is an **empty trace**, which does not point at its own cause. | Findable here when someone upgrades the CLI and traces go empty. Re-check the flag combination against `claude --help` at that point. |
 | D6 | **`launch` skill is stale and Windows-hostile** | Cannot be used here. References deleted `agentHost`. | Use `scripts/code.bat`. Rewrite the skill or delete it. |
 | D7 | `CONTRIBUTING.md:116` still states the retired ≤15-patch budget | Contradicts `PATCHES.md:14`. Misleads readers. | One-line fix. |
 | D8 | Deferred residue from the AI excision (`PATCHES.md:101-106`) | Dead but compiling: AI-search type surface, `_chatExtensionId`, three orphaned dirs. | Tracked in `DEAI-PROGRESS.md`. |
