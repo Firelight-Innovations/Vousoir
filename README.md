@@ -2,7 +2,7 @@
 
 **An Agentic Development Environment (ADE), built on [code-oss](https://github.com/microsoft/vscode).**
 
-Vousoir is a full editor — everything VS Code does — plus a layer for working *with* agents rather
+Vousoir is an agent development enviroment with a layer for working *with* agents rather
 than merely alongside them: a per-repo project-data folder (`.v6r/`) holding specs, whiteboards, and
 committed agent traces, and a supervised service host for long-running local services.
 
