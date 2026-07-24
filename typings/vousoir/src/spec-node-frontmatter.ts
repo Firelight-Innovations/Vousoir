@@ -1,6 +1,6 @@
 /**
  * Frontmatter schema for a spec-tree node: the YAML header of one `.md` file under
- * `.v6r/spec/` (work order §8). Nested folders under `spec/` mirror the module hierarchy;
+ * `.vousoir/spec/` (work order §8). Nested folders under `spec/` mirror the module hierarchy;
  * this schema covers only the structured frontmatter header, not the free-form markdown
  * body below it.
  *
@@ -39,11 +39,17 @@ export const specNodeContractSchema = z.object({
 	/**
 	 * The contract itself, as free-form text: signatures, endpoints, columns, invariants.
 	 *
-	 * Deliberately unstructured for M1 (ADR open question 4, proposed resolution). It can
-	 * become a per-kind structured shape later — a `z.discriminatedUnion('kind', …)` whose
-	 * branches each parse their own body — WITHOUT breaking existing files, because a
-	 * structured reader can still accept the string form as the unparsed fallback. Give it
-	 * structure only when the contract linter needs to parse it.
+	 * Free-form is the user's ruling on ADR open question 4. It is explicitly an INTERIM
+	 * shape, not the end state. **Structured per-kind fields must land additively before
+	 * the integration-testing milestone** (source-of-truth Feature 6): an agent running a
+	 * contract integration test needs a machine-readable contract, because it cannot diff
+	 * prose. That is a dated commitment, not a maybe.
+	 *
+	 * The additive path is already open. Turn this object into a
+	 * `z.discriminatedUnion('kind', …)` whose branches each carry their own structured
+	 * fields beside a retained `body`. Nothing written before that change becomes invalid,
+	 * because the structured reader still accepts the string as the unparsed fallback —
+	 * the same move ADR-008 made for `contract` → `contracts`.
 	 *
 	 * May be empty: a contract can be named on the canvas before it is written.
 	 */
