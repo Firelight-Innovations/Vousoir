@@ -11,9 +11,10 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { parse } from 'yaml';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import type { SpecTree } from '@vousoir/typings';
+import type { SpecNode, SpecNodeFrontmatter, SpecTree } from '@vousoir/typings';
 import { WORK_ORDER_GOLDEN_PATH, loadWorkOrderTree } from '../fixtures/work-order-tree-fixture.ts';
 import { SpecStoreError } from '../spec-store/spec-store-error.ts';
+import { buildSpecTree } from '../spec-store/spec-tree.ts';
 import { compileWorkOrder } from './compile-work-order.ts';
 import { writeWorkOrder, workOrdersDir } from './write-work-order.ts';
 
@@ -60,6 +61,25 @@ describe('compileWorkOrder', () => {
 	it('names the node when asked to compile something that does not exist', () => {
 		expect(() => compileWorkOrder(tree, 'ghost')).toThrow(SpecStoreError);
 		expect(() => compileWorkOrder(tree, 'ghost')).toThrow(/there is no spec node with id "ghost"/);
+	});
+
+	it('normalises CRLF spec content to LF, so a Windows checkout compiles the same bytes', () => {
+		// Spec bodies are embedded verbatim and arrive CRLF on Windows, while the template's
+		// own joins are LF. Without normalising, one tree compiles to two different files
+		// depending on how the repo was checked out — which broke the golden test for real.
+		const frontmatter: SpecNodeFrontmatter = {
+			id: 'crlf',
+			title: 'CRLF',
+			parent: null,
+			status: 'specified',
+			contracts: [{ id: 'c-1', kind: 'moduleApi', name: 'run', body: 'line one\r\nline two' }],
+		};
+		const crlf: SpecNode = { id: 'crlf', filePath: '/repo/spec/crlf.md', frontmatter, body: 'first\r\n\r\nsecond\r\n' };
+		const { markdown } = compileWorkOrder(buildSpecTree([crlf]), 'crlf');
+
+		expect(markdown).not.toContain('\r');
+		expect(markdown).toContain('line one\nline two');
+		expect(markdown).toContain('first\n\nsecond');
 	});
 });
 

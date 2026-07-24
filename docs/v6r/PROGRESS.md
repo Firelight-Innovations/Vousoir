@@ -2,7 +2,7 @@
 
 Updated after every milestone. Docs: [`ADR.md`](./ADR.md) (why) · [`ARCHITECTURE.md`](./ARCHITECTURE.md) (how and where).
 
-**Gate for every milestone:** `cd vousoir; pnpm run verify` green. Currently 66 tests, exit 0.
+**Gate for every milestone:** `cd vousoir; pnpm run verify` green. Currently 93 tests, exit 0.
 
 ## Milestones
 
@@ -12,7 +12,7 @@ Updated after every milestone. Docs: [`ADR.md`](./ADR.md) (why) · [`ARCHITECTUR
 | **M1 — Model + spec store** | ✅ Complete | `v6r/m1-model` | [#12](https://github.com/Firelight-Innovations/Vousoir/pull/12) | Schema extended in place (ADR-008): typed `contracts[]`, optional given/when/then, scalar `contract` kept. `SpecStore` in `@vousoir/shared` — load/save/CRUD/nest/watch, byte-identical round trip. Brought `yaml@2.9.0` (closes D7). Carried the `.v6r/` → `.vousoir/` rename into code. 22 → 66 tests. |
 | **M2 — Canvas editor + auto-layout** | ⬜ Pending | — | — | `registerCustomEditorProvider` on `*.v6r`; hand-rolled recursive layout (ADR-003). Biggest risk: layout thrash. **Now also ships manual placement + an explicit auto-tidy command, and `.vousoir/layout.json`** (ADR-003 amendment). The `.vousoir/` rename arrives from M1, so no `filenamePattern` stem rule is needed. |
 | **M3 — Per-node spec panel** | ⬜ Pending | — | — | Behaviour / Contracts / Test Cases; writes one `.md` per node. Needs the external-edit watcher. |
-| **M4 — Work-order compiler** | ⬜ Pending | — | — | **Unblocked 2026-07-24.** Scope settled: node's full spec + ancestors' **behaviour summaries** + contracted neighbours' **contract blocks only, never internals**. Spec in ARCHITECTURE.md §6 M4. |
+| **M4 — Work-order compiler** | ✅ Complete | `v6r/m4-compiler` | [#13](https://github.com/Firelight-Innovations/Vousoir/pull/13) | Shipped the settled scope: node's full spec + ancestors' **behaviour summaries** + neighbours' **contract blocks only, never internals**. Pure `compileWorkOrder`, separate `writeWorkOrder` to `.vousoir/cache/work-orders/<slug>.md`, plus the `vousoir.compileWorkOrder` command. Leak-prevention is structural, not disciplined. Neighbours are a structural approximation pending open question 10. 66 → 93 tests. |
 | **M5 — Dispatch to Claude Code** | ⬜ Pending | — | — | `child_process` from the extension host (ADR-005). `ELECTRON_RUN_AS_NODE=1` mandatory. |
 | **M6 — Orchestration + MCP server** | ⬜ Pending | — | — | Standalone `vousoir/services/spec-mcp/` (ADR-006). Nine tools. |
 

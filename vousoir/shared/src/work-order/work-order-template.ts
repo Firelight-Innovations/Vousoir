@@ -31,7 +31,16 @@ const RELATION_LABEL: Record<WorkOrderNeighbourRelation, string> = {
 	child: 'Child',
 };
 
-/** Renders the complete work order markdown for `node`. */
+/**
+ * Renders the complete work order markdown for `node`.
+ *
+ * The result is normalised to LF. Behaviour and contract bodies are embedded verbatim from
+ * the spec files, and on Windows those arrive CRLF while the template's own joins are LF —
+ * so without this a work order would carry mixed line endings, and identical trees would
+ * compile to different bytes depending on how the repo happened to be checked out. A
+ * compiled artefact gets one canonical form; the round-trip fidelity that preserves a
+ * user's own line endings belongs to the spec store, not here.
+ */
 export function renderWorkOrder(node: SpecNode, context: WorkOrderContext): string {
 	const sections = [
 		renderInstructions(node),
@@ -39,7 +48,7 @@ export function renderWorkOrder(node: SpecNode, context: WorkOrderContext): stri
 		renderAncestors(context),
 		renderNeighbours(context),
 	].filter((section): section is string => section !== undefined);
-	return `${renderFrontmatter(node)}${sections.join('\n\n')}\n`;
+	return `${renderFrontmatter(node)}${sections.join('\n\n')}\n`.replace(/\r\n?/g, '\n');
 }
 
 /**
