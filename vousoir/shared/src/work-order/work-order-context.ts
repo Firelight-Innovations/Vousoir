@@ -11,31 +11,21 @@
  * If you are tempted to widen these interfaces, that is the moment to stop.
  */
 
-import type { SpecNode, SpecNodeContractKind, SpecTree } from '@vousoir/typings';
+import type {
+	SpecNode,
+	SpecTree,
+	WorkOrderAncestor,
+	WorkOrderNeighbourContract,
+	WorkOrderNeighbourRelation,
+} from '@vousoir/typings';
 import { resolveSpecNodeBehaviour, resolveSpecNodeContracts } from '../spec-store/resolve-spec-node.ts';
 import { specNodeIdChain } from '../spec-store/spec-tree-walk.ts';
 
-/** How a neighbour sits relative to the node being compiled. */
-export type WorkOrderNeighbourRelation = 'parent' | 'sibling' | 'child';
-
-/** An ancestor, reduced to orientation. Never its contracts, never its test cases. */
-export interface WorkOrderAncestor {
-	readonly id: string;
-	readonly title: string;
-	/** First paragraph of the ancestor's resolved behaviour, or `undefined` if it has none. */
-	readonly summary: string | undefined;
-}
-
-/** One contract belonging to a neighbouring module: its edge, and nothing behind it. */
-export interface WorkOrderNeighbourContract {
-	readonly nodeId: string;
-	readonly nodeTitle: string;
-	readonly relation: WorkOrderNeighbourRelation;
-	/** `undefined` for the deprecated scalar `contract`, which carries no name or kind. */
-	readonly name: string | undefined;
-	readonly kind: SpecNodeContractKind | undefined;
-	readonly body: string;
-}
+/**
+ * The element shapes moved to `@vousoir/typings` in M6, where they are also the MCP
+ * `get_neighbor_context` payload. Re-exported here so M4's callers keep one import.
+ */
+export type { WorkOrderAncestor, WorkOrderNeighbourContract, WorkOrderNeighbourRelation };
 
 /** Everything around the node that a work order may include. */
 export interface WorkOrderContext {
