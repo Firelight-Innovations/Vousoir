@@ -320,6 +320,13 @@ name and changes value.
 
 - **Work orders** are compiled artefacts. Write them under `.vousoir/cache/work-orders/` (derived and
   regenerable from the spec) and let M4 render to a user-chosen path on explicit save.
+  **Confirmed 2026-07-24 after being challenged.** The distinction is reproducibility, not
+  importance: a **trace** records something that *happened* and cannot be regenerated, so losing it
+  loses information and it earns a committed directory. A **work order** is derived and regenerable
+  byte-identically, because the compiler is pure. Committing them puts git churn into files no human
+  authored, and lets a stale work order outlive the spec change that invalidated it with nothing
+  signalling the drift. If a particular work order needs preserving as a record, that is **M5's
+  dispatch artefact**, sitting beside the trace of the run that consumed it.
 - **Node positions** → `.vousoir/layout.json`, **not** `.vousoir/cache/`. Manual placement is supported,
   so positions are user-authored and a cache clear must not destroy them (ADR-003 amendment
   2026-07-24). They are **never** written to spec frontmatter — that rule is unchanged (ADR-002,
@@ -381,6 +388,12 @@ validates. M1 added a **second** fixture set, a real `.md` tree at
 
 All paths relative to the repo root. Every milestone's gate is `cd vousoir; pnpm run verify` green.
 
+> **"Creates" is a prediction, not a commitment.** For unbuilt milestones these filenames are a
+> sketch of the shape, not a checklist to satisfy. The 300-line soft cap decides how many files a
+> milestone actually needs, and it has already made one of these predictions wrong: M4 was written
+> here as one `compile.ts` and shipped as five modules. **Build what the work needs and correct this
+> section afterwards** — do not split or merge files to match a guess made before the code existed.
+
 ### M1 — Model + spec store
 
 **Creates:** extends `typings/vousoir/src/spec-node-frontmatter.ts` (contracts[], test-case fields);
@@ -440,7 +453,11 @@ than one text box, per ADR-008.
 
 ### M4 — Work-order compiler
 
-**Creates:** `vousoir/shared/src/work-order/compile.ts` + template.
+**Created** (actual, as shipped in PR #13 — this section predicted `compile.ts` + template, and both
+the count and the entry filename were wrong): `vousoir/shared/src/work-order/` holding **five**
+modules — `work-order-context.ts` (context collector), `work-order-template.ts`,
+`work-order-slug.ts`, `write-work-order.ts`, and `compile-work-order.ts` as the entry. One file could
+not hold all of it under the repo's 300-line soft cap.
 
 **Scope — settled 2026-07-24 (`ADR.md` open question 1). This is the compiler's specification.** A work
 order for node *N* contains exactly three tiers and nothing else:
@@ -472,7 +489,28 @@ child needs to know is what its parent is *for*.
 covered by a unit test, including a negative one asserting a neighbour's `behaviour` and `testCases`
 never appear in the output; the compiler is a pure function; output is reviewable before dispatch.
 **Risk:** tier-3 leakage — the easy bug is emitting a neighbour's whole spec because it was already
-loaded. Test for absence, not just presence.
+loaded. Test for absence, not just presence. M4 answered this structurally: the context interfaces
+physically cannot hold a neighbour's behaviour, test cases or body, so the renderer is never handed
+the data and cannot leak it by accident. Keep it that way.
+
+**"Fully specified" is M3's to define — decided 2026-07-24.** `vousoir-source-of-truth.md:93` has the
+user *"select a node that's fully specified"*, but **nothing in the model defines that**, and `status`
+is user-set rather than derived, so it cannot stand in. **M3 owns the definition**, because M3's own
+requirement — node badges showing spec completeness — cannot ship without deciding what completeness
+means. **Until then the compiler compiles anything**, including an `unspecified` node, and states the
+node's status in the output rather than guessing. Once M3 defines it, revisit whether the compile
+command should warn or refuse. A forward dependency on M3, not an open question.
+
+**Interface decisions M4 made that no ADR covered**, recorded so they are not re-litigated:
+
+| Case | Behaviour |
+|---|---|
+| Neighbour holds only the deprecated scalar `contract` | Included, rendered **untyped** — no `kind` is invented for it. |
+| Neighbour has no contracts at all | **Omitted entirely** — no empty heading. |
+| The node's **own** contract / test-case sections when empty | **Always render**, with an explicit *"declares no contracts"*. Silence in a node's own spec reads as an omission bug; silence in *context* sections does not, which is why those drop when empty. |
+| "First paragraph" of an ancestor's behaviour | The first block of consecutive non-blank lines, after skipping leading blanks and `#` headings. |
+| Co-roots (two nodes with `parent: null`) | Count as **siblings**. |
+| Work-order slugs | Derived from `id`, with a SHA-256 suffix **only** when sanitising was lossy. Can never contain a path separator or `..`. |
 
 ### M5 — Dispatch to Claude Code
 
@@ -525,6 +563,7 @@ and converge here. **Settle both before building this milestone, and land them t
 | D4 | **Services spawned as raw `.ts`** relying on Node 24 type stripping (`PATCHES.md` A2, open risk) | Electron 42.6.0's bundled Node may differ; stripping only supports erasable syntax. | Fallback: esbuild service entries to `.js`. |
 | D5 | ~~**No YAML dependency** anywhere in the Vousoir layer (`PATCHES.md` D7)~~ | — | **CLOSED by M1** (PR #12): `yaml@2.9.0`. The JSON frontmatter goldens were kept; a real `.md` tree fixture was added beside them. |
 | D9 | **`vousoir/PATCHES.md:63` and `vousoir/HANDOFF.md:183` still say `.v6r/`** | Looks like a missed rename. It is not. | **Ruled 2026-07-24: leave them.** Both are historical records — a ledger row describing a past README rewrite, and a completed acceptance-test checklist. They accurately describe what was true when written, and rewriting a record of the past to match the present is how a ledger stops being trustworthy. **Do not "fix" these.** |
+| D10 | **`vousoir-technical-spec.md:93` permits a contract leak, read literally** | It specifies the work-order output as *"spec + contracts + tests + neighbor/ancestor context"* **without saying whose**. Read literally that allows emitting a neighbour's test cases — precisely the leak the product must not have. The code does the right thing; the spec does not say so. | **The user must make this edit — do not edit that file.** One clause fixes it: *"…the node's **own** spec, contracts and tests, plus neighbour/ancestor context as **contracts only**."* Same standing as Feature 3 (R9): a user-owned product document that the ADRs cannot amend. |
 | D6 | **`launch` skill is stale and Windows-hostile** | Cannot be used here. References deleted `agentHost`. | Use `scripts/code.bat`. Rewrite the skill or delete it. |
 | D7 | `CONTRIBUTING.md:116` still states the retired ≤15-patch budget | Contradicts `PATCHES.md:14`. Misleads readers. | One-line fix. |
 | D8 | Deferred residue from the AI excision (`PATCHES.md:101-106`) | Dead but compiling: AI-search type surface, `_chatExtensionId`, three orphaned dirs. | Tracked in `DEAI-PROGRESS.md`. |
