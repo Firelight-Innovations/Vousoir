@@ -97,6 +97,27 @@ a native module instead of printing a clear message.
     }
     Write-Ok "pnpm $(pnpm --version)"
 
+    # --- git core.longpaths -------------------------------------------------
+    # code-oss has paths deeper than Windows' 260-character MAX_PATH (the
+    # extensions/copilot test fixtures in particular). Without this, `git clone`
+    # succeeds but CHECKOUT FAILS partway with "Filename too long", leaving a
+    # half-populated working tree that looks like a corrupt repo.
+    $longPaths = git config --get core.longpaths 2>$null
+    if ($longPaths -ne 'true') {
+        Write-Warn "git core.longpaths is not enabled."
+        Write-Warn "  Deep code-oss paths can exceed Windows' 260-char limit and break checkout."
+        Write-Warn "  Enable it with:  git config --global core.longpaths true"
+        Write-Warn "  (Not set automatically - it changes your global git config.)"
+    } else {
+        Write-Ok "git core.longpaths enabled"
+    }
+
+    # Depth of the repo path itself matters just as much as the setting.
+    if ($repoRoot.Length -gt 60) {
+        Write-Warn "Repo path is $($repoRoot.Length) chars deep: $repoRoot"
+        Write-Warn "  Prefer something short like C:\dev\Vousoir to stay clear of MAX_PATH."
+    }
+
     # --- Python (node-gyp) --------------------------------------------------
     if (-not (Get-Command python -ErrorAction SilentlyContinue)) {
         Fail "Python is not installed or not on PATH (node-gyp needs it)." "winget install --id Python.Python.3.13"

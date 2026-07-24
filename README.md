@@ -15,11 +15,17 @@ committed agent traces, and a supervised service host for long-running local ser
 ## Quick start
 
 ```powershell
-git clone https://github.com/Firelight-Innovations/Vousoir.git
-cd Vousoir
+git config --global core.longpaths true      # once per machine — see below
+git clone https://github.com/Firelight-Innovations/Vousoir.git C:\dev\Vousoir
+cd C:\dev\Vousoir
 .\setup.ps1
 .\scripts\code.bat
 ```
+
+> **Clone to a short path, and enable `core.longpaths` first.** code-oss contains paths deeper than
+> Windows' 260-character `MAX_PATH` limit. Without both, `git clone` reports success but **checkout
+> fails partway** with `Filename too long`, leaving a half-populated tree that looks like a corrupt
+> repo. `setup.ps1` warns if either is missing.
 
 `setup.ps1` verifies your toolchain, installs both dependency layers, compiles everything, and runs
 the verification suite. It is safe to re-run and skips work already done.
