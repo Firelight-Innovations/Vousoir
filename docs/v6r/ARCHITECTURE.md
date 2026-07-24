@@ -298,22 +298,30 @@ scaffolds by iterating it. **Add a directory there, never at a call site.**
 ```
 <repo>/.vousoir/
 ├── .gitignore     # contents: "cache/\n"
+├── layout.json    # node positions — user-authored, NOT regenerable (ADR-003 amendment)
 ├── spec/          # COMMITTED — one .md per node, nested folders mirror the hierarchy
 ├── whiteboards/   # COMMITTED — reserved for Feature 11 (deferred)
 ├── traces/        # COMMITTED — one JSONL per agent run
 ├── docs/          # COMMITTED — Vousoir-maintained module docs
-└── cache/         # GITIGNORED — SQLite index, layout cache: derived, regenerable
+└── cache/         # GITIGNORED — SQLite index: derived, regenerable
 ```
 
 `V6R_COMMITTED_SUBDIRS = ['spec','whiteboards','traces','docs']`; `V6R_GITIGNORED_SUBDIRS = ['cache']`.
+The directory was renamed from `.v6r/` on 2026-07-24 (ADR-002 amendment); `V6R_ROOT_DIRNAME` keeps its
+name and changes value.
 
 - **Work orders** are compiled artefacts. Write them under `.vousoir/cache/work-orders/` (derived and
   regenerable from the spec) and let M4 render to a user-chosen path on explicit save.
-- **Layout cache** → `.vousoir/cache/`. Node positions are **never** written to spec frontmatter
-  (ADR-003, ADR-008).
+- **Node positions** → `.vousoir/layout.json`, **not** `.vousoir/cache/`. Manual placement is supported,
+  so positions are user-authored and a cache clear must not destroy them (ADR-003 amendment
+  2026-07-24). They are **never** written to spec frontmatter — that rule is unchanged (ADR-002,
+  ADR-008).
+- `layout.json` is a file, not a `V6R_SUBDIRS` member, and `V6R_GITIGNORE_CONTENTS` is `cache/\n`, so
+  **it is committed by default unless someone acts.** Gitignored vs committed is open — `ADR.md` open
+  question 7.
 - The `*.v6r` file the editor binds to is a **thin manifest** (project name, schema version, spec-dir
-  pointer), not the model (ADR-002). Open question: JSON vs YAML, and the bare-`.v6r` filename
-  collision — see `ADR.md` open questions 2 and 3.
+  pointer), not the model (ADR-002). It is **JSON** (`ADR.md` open question 2, resolved 2026-07-24),
+  and the directory rename removed the bare-`.v6r` filename collision.
 
 ### Spec-node frontmatter
 
@@ -368,14 +376,23 @@ schema (ADR-001, ADR-008). `position` and `children` dropped.
 **Creates:** `extensions/vousoir-core/src/canvas/` (provider, document, message protocol),
 `extensions/vousoir-core/src/canvas/layout.ts` (**pure function, no `vscode` import**),
 `extensions/vousoir-core/media/canvas.{js,css}`, `customEditors` + first `vousoir.*` commands in
-`package.json`, a second browser-target entry in `esbuild.mts`.
+`package.json` (including the auto-tidy command), a second browser-target entry in `esbuild.mts`,
+and a `.vousoir/layout.json` reader/writer.
 **Acceptance:** open a `*.v6r` file → nested boxes render for the tree in `.vousoir/spec/`; add, delete and
-re-nest a node → layout re-runs and the file on disk updates; `layout.ts` has direct unit tests.
+re-nest a node → the file on disk updates; drag a node → its position persists to
+`.vousoir/layout.json` and survives a `.vousoir/cache/` wipe; run auto-tidy → layout re-runs;
+**no other action moves a node the user placed**; `layout.ts` has direct unit tests.
 **Risk:** **layout thrash.** Route every mutation through one classifier returning
 `structural | content`; only `structural` triggers layout. Get this wrong and M3 typing re-lays the
 canvas on every keystroke.
 **Changed by recon:** hand-rolled recursive layout, no ELK/dagre, no React Flow (ADR-003) — this
-overrules the Stage 3 tech-stack selection and is the most likely ADR to be reversed.
+overrules the Stage 3 tech-stack selection. Approved by the user on 2026-07-24 **with a revisit
+trigger**: reconsider a routing library only once the canvas renders contract edges *and* hand-rolled
+routing is ugly.
+**Changed by the 2026-07-24 ruling:** manual placement is supported and auto-layout is an explicit
+auto-tidy command that **must never silently override a user's placement**. This **supersedes**
+`vousoir-source-of-truth.md:86` (Feature 3), which says auto-layout *"has to work invisibly, not be a
+separate 'clean up' action"*. **Do not implement Feature 3 as written** — see the ADR-003 amendment.
 
 ### M3 — Per-node spec panel
 
@@ -446,7 +463,8 @@ itself *"This is NOT MCP"* (ADR-006). Three drafted tool lists merged into one s
 |---|---|---|
 | R1 | **Layout thrash in M2/M3** — spec-text edits re-run layout on every keystroke | Single mutation classifier; only `structural` reaches layout. Keep `layout.ts` a pure function with direct tests. Highest-probability failure in the plan. |
 | R2 | **Missing `ELECTRON_RUN_AS_NODE` in M5** — silently launches an Electron instance; no plain-Node test can catch it | Assert the env var in the spawn options in a unit test **and** verify once by hand in the real shell (`PATCHES.md:276`). |
-| R3 | **ADR-003 overrules a made Stage 3 decision** (React Flow + ELK) | Flagged for user review. Reversible: swap the implementation behind the same pure-function signature. See `ADR.md` ADR-003. |
+| R3 | **ADR-003 overrules a made Stage 3 decision** (React Flow + ELK) | **Approved 2026-07-24 with a revisit trigger**: contract links create cross-edges the strict-tree argument does not cover, so reconsider a routing library once the canvas renders contract edges *and* hand-rolled routing is ugly — not before. Still reversible behind the same pure-function signature. |
+| R9 | **Feature 3 is stale and says the opposite of ADR-003** — it forbids a manual "clean up" action (`vousoir-source-of-truth.md:86`); the 2026-07-24 ruling requires exactly that | Follow the ADR-003 amendment, not Feature 3. `vousoir-source-of-truth.md` needs its author's edit; until then the two documents disagree and the ADR is operative. |
 | R4 | **Work-order scope is unresolved** and gates M4's correctness | `ADR.md` open question 1 has a proposed resolution. Get the user's call before building M4. |
 | R5 | **`*.v6r` filename collides with the `.vousoir/` directory** | Decide the `filenamePattern` in M2, **before** any user repo contains a `.v6r` file. `ADR.md` open question 3. |
 | R6 | **Worktree dependency drift** — two branches, one `node_modules` | Any lockfile change is stop-the-world. Re-verify both branches. |

@@ -43,7 +43,7 @@ files are *not* core patches"* — it needs no `PATCHES.md` entry, even though `
 |---|-------|--------|----------------------|
 | ADR-001 | Host the canvas as a built-in extension, not a core workbench contrib | Accepted | Canvas, spec panel and dispatch live in `extensions/vousoir-core` behind `registerCustomEditorProvider` bound to `*.v6r`; **not** `src/vs/workbench/contrib/vousoir/`. |
 | ADR-002 | Specs are markdown + YAML frontmatter under `.vousoir/spec/`; `*.v6r` is a thin manifest | Accepted · **amended 2026-07-24** | Ratify the shipped `specNodeFrontmatterSchema` and `V6R_SUBDIRS`; the `*.v6r` file the editor binds to is a small project manifest, not the model. **Amended:** the directory is `.vousoir/`, not `.v6r/`. |
-| ADR-003 | Hand-roll recursive tree layout; no ELK or dagre | Accepted | ~150 lines of recursive nested-box layout, no layout library — the model is a strict tree, not a general graph. |
+| ADR-003 | Hand-roll recursive tree layout; no ELK or dagre | Accepted · **amended 2026-07-24** | ~150 lines of recursive nested-box layout, no layout library — the model is a strict tree, not a general graph. **Amended:** manual placement is supported, auto-layout is an explicit auto-tidy command, positions live in `.vousoir/layout.json`. **Supersedes Feature 3's auto-layout-on-every-mutation.** |
 | ADR-004 | Ship webview assets as extension files via `asWebviewUri` | Accepted | Canvas JS/CSS are real files under `media/`, loaded through `asWebviewUri` + `localResourceRoots` under a nonce CSP. No CDN, no network. |
 | ADR-005 | Dispatch Claude Code from the extension host via `child_process` | Accepted | M5 spawns `claude -p …` from extension-host Node code with `ELECTRON_RUN_AS_NODE=1`; no new IPC service. |
 | ADR-006 | The MCP server is a standalone stdio node script, not in-process | Accepted | M6 ships `vousoir/services/spec-mcp/` as its own package with its own `main.ts`, launched by an external `claude` via `claude mcp add`; nine tools over `.vousoir/spec/`. |
@@ -424,10 +424,62 @@ technical spec is now operative** — the 2026-07-24 amendment above renames the
 
 ## ADR-003 — Hand-roll recursive tree layout; no ELK or dagre
 
-**Status:** Accepted (2026-07-24)
-**Deciders:** orchestrating agent, pending user review
+**Status:** Accepted (2026-07-24) — **amended 2026-07-24** (revisit trigger; manual placement)
+**Deciders:** orchestrating agent; approved with a revisit trigger, and amended, by the user on PR #11
 
-### Context
+### Amendment (2026-07-24) — revisit trigger, and manual placement
+
+#### 1. Approved, with a named revisit trigger
+
+The hand-rolled layout stands. The user's reasoning, recorded because it names the condition under
+which the decision flips: *"the hierarchy is a tree, but contract links (this base branch is
+`phase-2-links`) create cross-edges. If/when the canvas renders contract edges and hand-rolled routing
+gets ugly, that's the point to reconsider a routing library — not before."*
+
+So the trigger is **both** conditions, not either: the canvas renders contract edges **and**
+hand-rolled routing has gotten ugly. Not before then. This sharpens the Consequences bullet below
+that already anticipated it — the strict-tree argument holds for *containment*, and contract links are
+the cross-edges that would break it.
+
+#### 2. Positions are no longer purely derived data
+
+Resolves open question 5. **Manual placement is supported**: the user may place nodes freely.
+
+- Auto-layout runs as an **explicit auto-tidy command**. It **must never silently override** a user's
+  placement.
+- Positions move out of the wipeable `.vousoir/cache/` into a dedicated **`.vousoir/layout.json`**, so
+  clearing the cache cannot destroy user work. The Decision below classified positions as regenerable;
+  once a human authors them, they are not.
+- **Unchanged and still binding: positions never go in spec frontmatter.** The Decision's rationale for
+  that rule survives this amendment intact — layout churn in every spec file's git diff would defeat
+  the Portable Spec Files requirement ADR-002 serves. Only the *storage location and regenerability*
+  changed, not the frontmatter rule. ADR-008's "do not add `position`" therefore also stands.
+- `.vousoir/layout.json` is a file, not a `V6R_SUBDIRS` member, and `V6R_GITIGNORE_CONTENTS` is
+  `cache/\n` — so it is **committed by default unless someone acts**. Whether it should be is open;
+  see open question 7.
+
+#### Supersedes: Feature 3 auto-layout-on-every-mutation
+
+**A future reader must not follow Feature 3 on this point.** Two documents state the opposite
+requirement, and the user overruled both, knowingly, on 2026-07-24 while reviewing PR #11.
+
+| Statement | Source | Status |
+|---|---|---|
+| *"This has to work invisibly, not be a separate 'clean up' action the user has to remember to run."* | `vousoir-source-of-truth.md:86` (Feature 3, "Auto-Layout") | **Superseded.** An explicit auto-tidy command is exactly the separate clean-up action this forbids. |
+| *"Auto-layout must re-run on **every** structural mutation … manual tidying is explicitly forbidden."* | M2 milestone brief | **Superseded** on both clauses. |
+| *"Manual placement with a 'tidy' button. Rejected."* | this ADR's own Rejected alternatives, below | **Reversed.** It is now the decision. |
+| *"whether deliberate manual placement should ever be silently overridden"* | `vousoir-source-of-truth.md:188` (parking lot) | **Resolved: never silently.** |
+| *"User's intentional manual placement (if any) is respected where reasonably possible."* | `vousoir-source-of-truth.md:84` | **Survives, strengthened** — from "where reasonably possible" to always. |
+| *"the user never has to manually tidy the diagram"* | `vousoir-source-of-truth.md:79` | **Survives for the default path** — untouched nodes still auto-arrange — but weakened: a user who places a node owns its position until they invoke auto-tidy. |
+
+Note the two sources say different things, and the difference matters to whoever edits them. The brief
+asserted a hard rule ("every mutation", "explicitly forbidden") that Feature 3 never actually stated;
+this ADR's Context already recorded that overstatement. Feature 3's own text is softer and mostly
+survives — `:86` is the one line it loses.
+
+**`vousoir-source-of-truth.md` Feature 3 is now stale and needs its author's edit.** It is the product
+source-of-truth document and this ADR cannot amend it. Until `:86` is rewritten, that document and this
+one disagree, and **this one is operative** for M2.
 
 **This ADR overrules an already-made decision, and that must be stated plainly.**
 `vousoir-technical-spec.md` is the Stage 3 tech-stack document, and it selected the canvas stack:
@@ -482,6 +534,11 @@ of 150 lines, with no layout-library dependency. Keep it a **pure function** —
 Run it on **structural** mutations only: node added, node deleted, node re-parented, node renamed if
 the label changes measured width. Do **not** run it on spec-text edits.
 
+> **Amended 2026-07-24.** The paragraph below is superseded on two points: auto-layout now runs as an
+> explicit auto-tidy command rather than on every structural mutation, and positions live in
+> `.vousoir/layout.json`, not `.vousoir/cache/`. Its frontmatter rule and its rationale for that rule
+> stand. See the amendment above.
+
 **Node positions are derived data and are never written to spec frontmatter.** They are computed
 from the tree on every structural mutation and, if cached at all, cached under `.vousoir/cache/`. The
 existing design already makes this call: `v6r-layout.ts:24` describes that directory as *"SQLite
@@ -506,10 +563,12 @@ serves. The milestone brief's `position` field is therefore **dropped from the M
 - Edge rendering between non-parent/child nodes (a module contracting with a distant sibling) has no
   library to fall back on. Deferred: the canvas draws containment first. If arbitrary edges become a
   requirement, that is the moment to re-open this ADR — a general-graph requirement is exactly what
-  ELK exists for.
-- Manual node placement is not supported in M2. Not because it is forbidden — `:84` asks for it to be
-  respected — but because `:188` leaves the override semantics undecided and shipping the wrong answer
-  is worse than shipping none. See Open Question 5.
+  ELK exists for. **This is now the named revisit trigger** (amendment, part 1): contract edges are
+  those cross-edges.
+- ~~Manual node placement is not supported in M2.~~ **Superseded 2026-07-24** — manual placement is
+  supported, and auto-layout may not silently override it. The original reasoning (`:188` left the
+  override semantics undecided, so shipping the wrong answer was worse than shipping none) held only
+  until the user decided; they have.
 - If the tree grows past a few hundred nodes and layout becomes visibly slow, revisit. Nothing here
   precludes swapping in ELK behind the same pure-function signature.
 
@@ -524,8 +583,10 @@ serves. The milestone brief's `position` field is therefore **dropped from the M
   value is the node/edge interaction model and its layout plugins. Nested containment boxes need
   neither. Reconsider if M2 needs pan/zoom/selection behaviour rich enough that hand-rolling it costs
   more than the dependency.
-- **Manual placement with a "tidy" button.** Rejected: `:86` is explicit — *"This has to work
-  invisibly, not be a separate 'clean up' action the user has to remember to run."*
+- ~~**Manual placement with a "tidy" button.** Rejected: `:86` is explicit — *"This has to work
+  invisibly, not be a separate 'clean up' action the user has to remember to run."*~~
+  **Reversed 2026-07-24 — this is now the decision.** The user overruled `:86` knowingly. See the
+  amendment above; `:86` is superseded and Feature 3 is stale.
 
 ### Evidence
 
@@ -1262,7 +1323,7 @@ The milestone brief specified a model type that does not match the shipped one. 
 | `contracts: Contract[]` with `kind: moduleApi \| serviceApi \| dbSchema` | `contract?: string` | one free-form string; **the brief is right that this should be typed** |
 | test cases with given/when/then + optional snippet | `{ id, description, expected }` | all three `z.string().min(1)` |
 | `children` | *(absent)* | the tree is derived from `parent` pointers |
-| `position` | *(absent)* | see ADR-003 — layout is derived data |
+| `position` | *(absent)* | see ADR-003 — layout lives in `.vousoir/layout.json`, never in frontmatter |
 
 These are not all the same kind of difference, and treating them uniformly would be a mistake. Two
 are cosmetic renames of committed, tested, cross-package identifiers. One (`contracts`) is a genuine
@@ -1299,8 +1360,10 @@ stays valid; a reader prefers `contracts[]` when present and falls back to `cont
 non-breaking by construction.
 
 **Do not add `children`** — it is derivable from `parent` and a stored copy is a denormalisation that
-can disagree with the pointers. **Do not add `position`** — layout is derived, regenerable data that
-belongs in `.vousoir/cache/` (ADR-003).
+can disagree with the pointers. **Do not add `position`** — layout belongs in `.vousoir/layout.json`
+(ADR-003, as amended 2026-07-24). The amendment made positions user-authored rather than regenerable,
+which **strengthens** this rule rather than weakening it: authored data in frontmatter is exactly the
+churn ADR-002 exists to keep out of spec diffs.
 
 Everything added must be re-exported from `typings/vousoir/src/index.ts`, or the sealed barrel makes
 it unreachable from the extension (ADR-001). Every change must leave `pnpm run verify` green — 22
@@ -1338,7 +1401,8 @@ tests today.
   ones.
 - **Storing `position` in frontmatter (as the brief implies).** Rejected — see ADR-003. It puts layout
   churn into every git diff of a spec file, defeating the Portable Spec Files requirement ADR-002
-  exists to serve.
+  exists to serve. Still rejected after the 2026-07-24 amendment: positions became user-authored, but
+  they went to `.vousoir/layout.json`, not to frontmatter.
 
 ### Evidence
 
