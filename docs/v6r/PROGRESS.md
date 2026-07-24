@@ -21,8 +21,8 @@ Updated after every milestone. Docs: [`ADR.md`](./ADR.md) (why) · [`ARCHITECTUR
 | Date | Decision | Where |
 |---|---|---|
 | 2026-07-24 | Canvas ships as a built-in extension (extend `vousoir-core`), not a core workbench contrib — `core-not-import-vousoir` makes a contrib unable to import the model at all | [ADR-001](./ADR.md) |
-| 2026-07-24 | Specs are markdown + YAML frontmatter under `.v6r/spec/`; `*.v6r` is a thin manifest | [ADR-002](./ADR.md) |
-| 2026-07-24 | Hand-rolled recursive tree layout; no ELK or dagre. Node positions are derived data in `.v6r/cache/`, never in frontmatter | [ADR-003](./ADR.md) |
+| 2026-07-24 | Specs are markdown + YAML frontmatter under `.vousoir/spec/`; `*.v6r` is a thin manifest | [ADR-002](./ADR.md) |
+| 2026-07-24 | Hand-rolled recursive tree layout; no ELK or dagre. Node positions are derived data in `.vousoir/cache/`, never in frontmatter | [ADR-003](./ADR.md) |
 | 2026-07-24 | Webview assets ship as extension files via `asWebviewUri` under a nonce CSP; no CDN | [ADR-004](./ADR.md) |
 | 2026-07-24 | Dispatch Claude Code from the extension host via `child_process`; `ELECTRON_RUN_AS_NODE=1` mandatory | [ADR-005](./ADR.md) |
 | 2026-07-24 | MCP server is a standalone stdio package, not an extension of the service-host protocol; nine merged tools | [ADR-006](./ADR.md) |
@@ -35,7 +35,7 @@ Ranked; full text and proposed resolutions in [`ADR.md`](./ADR.md#open-questions
 
 1. **Work-order scope** — immediate spec only vs + ancestors vs + contracted neighbours. **Gates M4.**
 2. `*.v6r` manifest format — JSON (proposed) or YAML.
-3. `*.v6r` file vs the `.v6r/` directory — filename-pattern collision. **Decide in M2, before any user repo has a `.v6r` file.**
+3. `*.v6r` file vs the `.vousoir/` directory — filename-pattern collision. **Decide in M2, before any user repo has a `.v6r` file.**
 4. `contractSchema` body — free-form string (proposed) or structured.
 5. Manual node placement and whether auto-layout may override it.
 6. `behaviour` vs `behavior` — keep the shipped British spelling (proposed).

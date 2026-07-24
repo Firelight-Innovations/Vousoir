@@ -290,13 +290,13 @@ package that opts into `"types": ["node"]`.
 
 ## 5. Model and file layout
 
-### `.v6r/` — driven by `V6R_SUBDIRS`, never hardcoded
+### `.vousoir/` — driven by `V6R_SUBDIRS`, never hardcoded
 
 `typings/vousoir/src/v6r-layout.ts` is the single source of truth; `vousoir/shared/src/v6r-init.ts:34`
 scaffolds by iterating it. **Add a directory there, never at a call site.**
 
 ```
-<repo>/.v6r/
+<repo>/.vousoir/
 ├── .gitignore     # contents: "cache/\n"
 ├── spec/          # COMMITTED — one .md per node, nested folders mirror the hierarchy
 ├── whiteboards/   # COMMITTED — reserved for Feature 11 (deferred)
@@ -307,9 +307,9 @@ scaffolds by iterating it. **Add a directory there, never at a call site.**
 
 `V6R_COMMITTED_SUBDIRS = ['spec','whiteboards','traces','docs']`; `V6R_GITIGNORED_SUBDIRS = ['cache']`.
 
-- **Work orders** are compiled artefacts. Write them under `.v6r/cache/work-orders/` (derived and
+- **Work orders** are compiled artefacts. Write them under `.vousoir/cache/work-orders/` (derived and
   regenerable from the spec) and let M4 render to a user-chosen path on explicit save.
-- **Layout cache** → `.v6r/cache/`. Node positions are **never** written to spec frontmatter
+- **Layout cache** → `.vousoir/cache/`. Node positions are **never** written to spec frontmatter
   (ADR-003, ADR-008).
 - The `*.v6r` file the editor binds to is a **thin manifest** (project name, schema version, spec-dir
   pointer), not the model (ADR-002). Open question: JSON vs YAML, and the bare-`.v6r` filename
@@ -369,7 +369,7 @@ schema (ADR-001, ADR-008). `position` and `children` dropped.
 `extensions/vousoir-core/src/canvas/layout.ts` (**pure function, no `vscode` import**),
 `extensions/vousoir-core/media/canvas.{js,css}`, `customEditors` + first `vousoir.*` commands in
 `package.json`, a second browser-target entry in `esbuild.mts`.
-**Acceptance:** open a `*.v6r` file → nested boxes render for the tree in `.v6r/spec/`; add, delete and
+**Acceptance:** open a `*.v6r` file → nested boxes render for the tree in `.vousoir/spec/`; add, delete and
 re-nest a node → layout re-runs and the file on disk updates; `layout.ts` has direct unit tests.
 **Risk:** **layout thrash.** Route every mutation through one classifier returning
 `structural | content`; only `structural` triggers layout. Get this wrong and M3 typing re-lays the
@@ -414,10 +414,10 @@ before the first dispatch.
 **Creates:** `vousoir/services/spec-mcp/` — its own package (sealed `exports`, `main.ts`,
 `parent-watchdog.ts`), schemas in `typings/vousoir/src/mcp-*.ts` re-exported from the barrel.
 **Acceptance:** `claude mcp add` registers it; an external `claude` lists modules and edits a spec
-with Vousoir **closed**; nine tools round-trip against a real `.v6r/spec/`.
+with Vousoir **closed**; nine tools round-trip against a real `.vousoir/spec/`.
 **Tool surface:** read — `list_modules`, `get_module`, `get_contracts`, `get_neighbor_context`,
 `get_work_order`; write — `create_module`, `update_module`, `update_contract`, `add_test_case`.
-**Risk:** two writers to `.v6r/spec/` (canvas + MCP). Last-write-wins per file is acceptable at this
+**Risk:** two writers to `.vousoir/spec/` (canvas + MCP). Last-write-wins per file is acceptable at this
 scale; do not build a lock. Also `types: []` — MCP payload schemas in `typings/` must stay primitives
 + zod, and the SDK can never be imported there (`typings-only-imports-zod`).
 **Changed by recon:** stands alone; does **not** extend the service-host protocol, which says of
@@ -448,9 +448,9 @@ itself *"This is NOT MCP"* (ADR-006). Three drafted tool lists merged into one s
 | R2 | **Missing `ELECTRON_RUN_AS_NODE` in M5** — silently launches an Electron instance; no plain-Node test can catch it | Assert the env var in the spawn options in a unit test **and** verify once by hand in the real shell (`PATCHES.md:276`). |
 | R3 | **ADR-003 overrules a made Stage 3 decision** (React Flow + ELK) | Flagged for user review. Reversible: swap the implementation behind the same pure-function signature. See `ADR.md` ADR-003. |
 | R4 | **Work-order scope is unresolved** and gates M4's correctness | `ADR.md` open question 1 has a proposed resolution. Get the user's call before building M4. |
-| R5 | **`*.v6r` filename collides with the `.v6r/` directory** | Decide the `filenamePattern` in M2, **before** any user repo contains a `.v6r` file. `ADR.md` open question 3. |
+| R5 | **`*.v6r` filename collides with the `.vousoir/` directory** | Decide the `filenamePattern` in M2, **before** any user repo contains a `.v6r` file. `ADR.md` open question 3. |
 | R6 | **Worktree dependency drift** — two branches, one `node_modules` | Any lockfile change is stop-the-world. Re-verify both branches. |
-| R7 | **Two writers to `.v6r/spec/`** in M6 (canvas + MCP) | Plain files, per-file last-write-wins, file watcher on the canvas side. No lock. |
+| R7 | **Two writers to `.vousoir/spec/`** in M6 (canvas + MCP) | Plain files, per-file last-write-wins, file watcher on the canvas side. No lock. |
 | R8 | **Schema fork** — a second model type shadowing `@vousoir/typings` | ADR-008 forbids it. Note `PATCHES.md` A3: dependency-cruiser **cannot** catch duplicate declarations — this is a review rule, so it needs human attention on every PR. |
 
 ---

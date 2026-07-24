@@ -15,8 +15,13 @@ not survive that check are called out in the decision text rather than quietly d
 Four of these ADRs deviate from a brief or a prior document. Those deviations are stated in the
 **Context** section of the ADR that makes them, not buried: ADR-001 deviates from the milestone
 brief's core-contrib layout, ADR-002 from its `.v6r` JSON persistence, ADR-003 from an already-made
-Stage 3 tech-stack selection, and ADR-008 from six of the brief's field names. All are pending user
-review and all are cheap to overrule.
+Stage 3 tech-stack selection, and ADR-008 from six of the brief's field names.
+
+**All five deviations were reviewed and approved by the user on 2026-07-24 (PR #11)** — in each case
+the repo's committed code and rules correctly overrule the brief. ADR-003 is approved **with a
+revisit trigger**; see its amendment. The same review resolved all six open questions and amended
+ADR-002 and ADR-003. Amendments are dated blocks inside the ADR they modify; the original text is
+left standing so the reasoning survives.
 
 **A path convention that has already produced one false finding.** The git repo root is
 `…/Projects/vousoir/vousoir` — a doubled directory name — and the Vousoir layer lives in a `vousoir/`
@@ -37,11 +42,11 @@ files are *not* core patches"* — it needs no `PATCHES.md` entry, even though `
 | # | Title | Status | Decision in one line |
 |---|-------|--------|----------------------|
 | ADR-001 | Host the canvas as a built-in extension, not a core workbench contrib | Accepted | Canvas, spec panel and dispatch live in `extensions/vousoir-core` behind `registerCustomEditorProvider` bound to `*.v6r`; **not** `src/vs/workbench/contrib/vousoir/`. |
-| ADR-002 | Specs are markdown + YAML frontmatter under `.v6r/spec/`; `*.v6r` is a thin manifest | Accepted | Ratify the shipped `specNodeFrontmatterSchema` and `V6R_SUBDIRS`; the `*.v6r` file the editor binds to is a small project manifest, not the model. |
+| ADR-002 | Specs are markdown + YAML frontmatter under `.vousoir/spec/`; `*.v6r` is a thin manifest | Accepted · **amended 2026-07-24** | Ratify the shipped `specNodeFrontmatterSchema` and `V6R_SUBDIRS`; the `*.v6r` file the editor binds to is a small project manifest, not the model. **Amended:** the directory is `.vousoir/`, not `.v6r/`. |
 | ADR-003 | Hand-roll recursive tree layout; no ELK or dagre | Accepted | ~150 lines of recursive nested-box layout, no layout library — the model is a strict tree, not a general graph. |
 | ADR-004 | Ship webview assets as extension files via `asWebviewUri` | Accepted | Canvas JS/CSS are real files under `media/`, loaded through `asWebviewUri` + `localResourceRoots` under a nonce CSP. No CDN, no network. |
 | ADR-005 | Dispatch Claude Code from the extension host via `child_process` | Accepted | M5 spawns `claude -p …` from extension-host Node code with `ELECTRON_RUN_AS_NODE=1`; no new IPC service. |
-| ADR-006 | The MCP server is a standalone stdio node script, not in-process | Accepted | M6 ships `vousoir/services/spec-mcp/` as its own package with its own `main.ts`, launched by an external `claude` via `claude mcp add`; nine tools over `.v6r/spec/`. |
+| ADR-006 | The MCP server is a standalone stdio node script, not in-process | Accepted | M6 ships `vousoir/services/spec-mcp/` as its own package with its own `main.ts`, launched by an external `claude` via `claude mcp add`; nine tools over `.vousoir/spec/`. |
 | ADR-007 | Develop in a git worktree with junctioned dependencies | Accepted (debt) | Work in `../vousoir-v6r` on `v6r/mvp`; `node_modules` and `build/node_modules` are junctions, `out/` is a real copy. Time-boxed debt with a documented undo — and it has already broken one build command. |
 | ADR-008 | Extend the existing spec-node schema; never fork it | Accepted | M1 adds typed `contracts[]` and given/when/then test fields to `specNodeFrontmatterSchema` in place; it does not introduce a parallel `ModuleNode` type, and it does not add `position`. |
 
@@ -245,10 +250,34 @@ fine; a large file is not.
 
 ---
 
-## ADR-002 — Specs are markdown + YAML frontmatter under `.v6r/spec/`; `*.v6r` is a thin manifest
+## ADR-002 — Specs are markdown + YAML frontmatter under `.vousoir/spec/`; `*.v6r` is a thin manifest
 
-**Status:** Accepted (2026-07-24)
-**Deciders:** orchestrating agent, pending user review
+**Status:** Accepted (2026-07-24) — **amended 2026-07-24** (project directory renamed `.v6r/` → `.vousoir/`)
+**Deciders:** orchestrating agent; amendment ruled by the user on PR #11
+
+### Amendment (2026-07-24) — the project directory is `.vousoir/`, not `.v6r/`
+
+Resolves open question 3. The user ruled: keep the `*.v6r` manifest **file** extension; rename the
+**directory** to `.vousoir/` (`.vousoir/spec/`, `.vousoir/cache/`, …). One name now means one thing,
+so `filenamePattern: "*.v6r"` can no longer collide with a directory entry.
+
+- `V6R_ROOT_DIRNAME` changes **value** to `'.vousoir'`. It does **not** change name. Neither do
+  `V6R_SUBDIRS`, `V6R_COMMITTED_SUBDIRS`, `V6R_GITIGNORED_SUBDIRS`, `V6R_GITIGNORE_FILENAME`, or
+  `V6R_GITIGNORE_CONTENTS` — `v6r` is the product's internal namespace prefix (a numeronym for
+  Vousoir), not a reference to the directory. Same for filenames like
+  `typings/vousoir/src/v6r-layout.ts` and `vousoir/shared/src/v6r-init.ts`.
+- The rename lands with M1. **This document is written in the post-rename name throughout**, including
+  in quotations of source docblocks, so that no reader implements the old name. The tree at
+  `3cf0c77872d` — the commit every Evidence block was verified against — still reads `.v6r/`; the two
+  Evidence entries that quote the literal constant are marked with the change.
+- One quotation is deliberately left verbatim: `vousoir/CONTRIBUTING.md:43-47` says *"`.v6r` layout"*
+  with no trailing slash, referring to the layout **module**, and that file is not being edited here.
+
+**This amendment reverses one of this ADR's own corrections.** The Context below originally recorded
+`vousoir-technical-spec.md:132` as superseded for naming the folder `.vousoir/`. On the directory name
+the technical spec was right and the shipped code was the deviation. What remains superseded is only
+its *contents*: §3.5 lists `spec/`, `whiteboards/`, `vousoir.db` and `worktrees/`, where the code has
+five subdirectories and no `vousoir.db` or `worktrees/`.
 
 ### Context
 
@@ -260,10 +289,11 @@ fields: `id` (non-empty string), `title` (non-empty string), `parent` (non-empty
 for the tree root), `status` (the enum `unspecified | specified | building | built | verified`),
 `behaviour` (optional string — note the British spelling in the shipped schema), `contract` (optional
 string), `testCases` (optional array of `{ id, description, expected }`). Its file docblock states the
-intent directly: *"the YAML header of one `.md` file under `.v6r/spec/`."* It has golden-fixture tests
+intent directly: *"the YAML header of one `.md` file under `.vousoir/spec/`."* It has golden-fixture tests
 (`vousoir/shared/src/spec-node-frontmatter.test.ts`) that pass today.
 
-`typings/vousoir/src/v6r-layout.ts` defines `V6R_ROOT_DIRNAME = '.v6r'` and `V6R_SUBDIRS` with
+`typings/vousoir/src/v6r-layout.ts` defines `V6R_ROOT_DIRNAME` (`'.v6r'` as shipped at recon,
+`'.vousoir'` from M1 — see the amendment above) and `V6R_SUBDIRS` with
 **exactly the five names** the brief reported — `spec`, `whiteboards`, `traces`, `docs`, `cache` —
 plus the committed/gitignored split (`V6R_COMMITTED_SUBDIRS` = spec, whiteboards, traces, docs;
 `V6R_GITIGNORED_SUBDIRS` = cache). `vousoir/shared/src/v6r-init.ts:34` scaffolds them by iterating
@@ -287,26 +317,31 @@ impractical. `vousoir-technical-spec.md:91` independently commits to the file-pe
 file per node, markdown + YAML frontmatter, directory structure mirroring the module hierarchy"* —
 so this ADR follows two documents and the shipped code, and departs from one line of the brief.
 
-One correction to the record: `vousoir-technical-spec.md:133` describes the data-at-rest folder as
-`.vousoir/` containing `spec/`, `whiteboards/`, `vousoir.db`, and `worktrees/`. The shipped code uses
-`.v6r/` with five subdirectories and no `vousoir.db` or `worktrees/`. **The code is operative**; that
-section of the technical spec is superseded.
+One correction to the record: `vousoir-technical-spec.md:132` describes the data-at-rest folder as
+`.vousoir/` containing `spec/`, `whiteboards/`, `vousoir.db`, and `worktrees/`. The shipped code used
+`.v6r/` with five subdirectories and no `vousoir.db` or `worktrees/`. **On the folder name the
+technical spec is now operative** — the 2026-07-24 amendment above renames the directory to
+`.vousoir/`. On the folder *contents* the code remains operative and §3.5 is superseded.
 
 ### Decision
 
 1. One markdown file per spec node, with YAML frontmatter validated by the **existing**
-   `specNodeFrontmatterSchema`, under `.v6r/spec/`, in nested folders mirroring the module hierarchy.
+   `specNodeFrontmatterSchema`, under `.vousoir/spec/`, in nested folders mirroring the module hierarchy.
    The free-form markdown body below the frontmatter is prose the schema does not constrain.
-2. The `.v6r/` directory layout is whatever `V6R_SUBDIRS` says. New directories are added there
+2. The `.vousoir/` directory layout is whatever `V6R_SUBDIRS` says. New directories are added there
    first, never invented at a call site.
 3. The `*.v6r` file that `registerCustomEditorProvider` binds to (ADR-001) is a **small project
    manifest** — project name, schema version, and a pointer to the spec directory — not the model.
-   Opening it opens the canvas; the canvas reads the tree from `.v6r/spec/`.
+   Opening it opens the canvas; the canvas reads the tree from `.vousoir/spec/`.
 4. The node schema is `specNodeFrontmatterSchema` in `@vousoir/typings`. It is **extended in place**,
    never forked into a parallel model type — see **ADR-008**, which specifies exactly what M1 adds
    and what it deliberately refuses to rename.
-5. Node **positions are never written to spec frontmatter**. They are derived from the tree and
-   cached under `.v6r/cache/` — see ADR-003 and ADR-008.
+5. Node **positions are never written to spec frontmatter**. They live in `.vousoir/layout.json` —
+   see the ADR-003 amendment (2026-07-24), which moved them out of the wipeable `.vousoir/cache/`
+   once manual placement made them user-authored data. The frontmatter rule is unchanged.
+6. `.vousoir/layout.json` is a **sixth entry under `.vousoir/`, and it is a file, not a subdirectory** —
+   so it is not a `V6R_SUBDIRS` member. `V6R_GITIGNORE_CONTENTS` is `cache/\n`, which does not match
+   it, so it is committed by default. Whether that is right is **open** — see open question 7.
 
 ### Consequences
 
@@ -324,7 +359,7 @@ section of the technical spec is superseded.
   "behavior" is fine in prose and UI labels.
 - `contract` is a single optional string today. ADR-008 adds a typed `contracts[]` array beside it
   and keeps the scalar accepted for back-compat.
-- `.v6r/cache/` is gitignored by the scaffolder (`V6R_GITIGNORED_SUBDIRS`). Nothing that must survive
+- `.vousoir/cache/` is gitignored by the scaffolder (`V6R_GITIGNORED_SUBDIRS`). Nothing that must survive
   a clone may live there.
 
 ### Rejected alternatives
@@ -336,7 +371,7 @@ section of the technical spec is superseded.
   commits to nested folders, and folders are what make the tree navigable in a plain file browser —
   which is the point of Feature 10. The `parent` field is kept anyway as the authority.
 - **SQLite as the spec store, files as an export.** Rejected outright by Feature 10 — *"nothing should
-  be locked away in a format only Vousoir can read."* SQLite's place is `.v6r/cache/`, for derived
+  be locked away in a format only Vousoir can read."* SQLite's place is `.vousoir/cache/`, for derived
   data only (`v6r-layout.ts:24`).
 - **Redefining the frontmatter schema for M1.** Rejected: it exists, it is tested, and
   `CONTRIBUTING.md:43-48` forbids redeclaring a shared shape.
@@ -348,12 +383,15 @@ section of the technical spec is superseded.
   behaviour: z.string().optional(), contract: z.string().optional(), testCases:
   z.array(specNodeTestCaseSchema).optional() });`
 - `typings/vousoir/src/spec-node-frontmatter.ts:2-3` — *"the YAML header of one `.md` file under
-  `.v6r/spec/` (work order §8). Nested folders under `spec/` mirror the module hierarchy"*.
+  `.vousoir/spec/` (work order §8). Nested folders under `spec/` mirror the module hierarchy"*.
 - `typings/vousoir/src/spec-node-frontmatter.ts:15` — `export const specNodeStatusSchema =
   z.enum(['unspecified', 'specified', 'building', 'built', 'verified']);`
 - `typings/vousoir/src/spec-node-frontmatter.ts:19-23` — `specNodeTestCaseSchema = z.object({ id, description, expected })`.
-- `typings/vousoir/src/v6r-layout.ts:12` — `export const V6R_ROOT_DIRNAME = '.v6r' as const;`
-- `typings/vousoir/src/v6r-layout.ts:14-26` — *"The five subdirectories under `.v6r/`, keyed by their
+- `typings/vousoir/src/v6r-layout.ts:12` — `export const V6R_ROOT_DIRNAME = '.v6r' as const;` — the
+  value becomes `'.vousoir'` with M1 per the amendment above; the symbol name is unchanged.
+- `typings/vousoir/src/v6r-layout.ts:40-41` — `export const V6R_GITIGNORE_CONTENTS =
+  `${V6R_SUBDIRS.cache}/\n`;` — the scaffolded `.gitignore` ignores `cache/` and nothing else.
+- `typings/vousoir/src/v6r-layout.ts:14-26` — *"The five subdirectories under `.vousoir/`, keyed by their
   role."* `spec`, `whiteboards`, `traces`, `docs`, `cache`.
 - `typings/vousoir/src/v6r-layout.ts:16` — *"Module tree: one .md (YAML frontmatter) node per file,
   nested folders mirror the hierarchy."*
@@ -445,7 +483,7 @@ Run it on **structural** mutations only: node added, node deleted, node re-paren
 the label changes measured width. Do **not** run it on spec-text edits.
 
 **Node positions are derived data and are never written to spec frontmatter.** They are computed
-from the tree on every structural mutation and, if cached at all, cached under `.v6r/cache/`. The
+from the tree on every structural mutation and, if cached at all, cached under `.vousoir/cache/`. The
 existing design already makes this call: `v6r-layout.ts:24` describes that directory as *"SQLite
 index over specs+traces, **layout cache** — derived data, regenerable"*, and `:35` puts `cache` in
 `V6R_GITIGNORED_SUBDIRS` while `:32` commits `spec`, `whiteboards`, `traces` and `docs` to git. So
@@ -732,7 +770,7 @@ silent"*).
   headless only; the interactive-PTY mode is the documented escape hatch if billing changes.
 - Structured output is available and should be used when M5 needs more than a pass/fail:
   `vousoir-technical-spec.md:113` — *"`claude -p --output-format stream-json` — clean structured
-  events"*. That output feeds `.v6r/traces/` later (`v6r-layout.ts:20`).
+  events"*. That output feeds `.vousoir/traces/` later (`v6r-layout.ts:20`).
 
 ### Rejected alternatives
 
@@ -842,7 +880,7 @@ do not exist yet and are out of scope for M6's spec server.
 ### Decision
 
 M6 ships **`vousoir/services/spec-mcp/`** — a standalone package with its own `main.ts` process entry,
-speaking MCP over stdio, reading and writing `.v6r/spec/` directly on disk. It is registered with an
+speaking MCP over stdio, reading and writing `.vousoir/spec/` directly on disk. It is registered with an
 external agent via `claude mcp add`. The workbench is not in the path; the extension neither spawns
 nor supervises it.
 
@@ -867,7 +905,7 @@ family.
 
 | Tool | Effect | Provenance |
 |---|---|---|
-| `create_module` | New node under a given parent; writes a new `.md` under `.v6r/spec/`. | list 3 |
+| `create_module` | New node under a given parent; writes a new `.md` under `.vousoir/spec/`. | list 3 |
 | `update_module` | Replace `title`, `behaviour`, `status`, and/or the markdown body. | `put_spec` (list 2) |
 | `update_contract` | Replace a node's `contract`. Separate from `update_module` because it is the one field with a verification story attached and the one an agent most often changes alone. | list 3 |
 | `add_test_case` | Append one `{ id, description, expected }` to `testCases`. Separate because append-one is a genuinely different operation from replace-all on a structured array. | list 3 |
@@ -905,7 +943,7 @@ from `typings/vousoir/src/index.ts`, or the sealed barrel makes it unreachable (
 
 - The MCP server works with Vousoir closed. An agent in a terminal can read and edit the spec with no
   editor running — which is what Feature 9 actually asks for.
-- Two writers now exist for `.v6r/spec/`: the canvas (via the extension) and the MCP server. Both
+- Two writers now exist for `.vousoir/spec/`: the canvas (via the extension) and the MCP server. Both
   write plain files, and the canvas must already watch for external edits — `vousoir-technical-spec.md:91`
   requires the spec store to *"Watch for external edits (user editing in Monaco or any editor) and
   emit change events"*, and Feature 10 promises the same round-trip. Last-write-wins on a per-file
@@ -1262,7 +1300,7 @@ non-breaking by construction.
 
 **Do not add `children`** — it is derivable from `parent` and a stored copy is a denormalisation that
 can disagree with the pointers. **Do not add `position`** — layout is derived, regenerable data that
-belongs in `.v6r/cache/` (ADR-003).
+belongs in `.vousoir/cache/` (ADR-003).
 
 Everything added must be re-exported from `typings/vousoir/src/index.ts`, or the sealed barrel makes
 it unreachable from the extension (ADR-001). Every change must leave `pnpm run verify` green — 22
@@ -1272,7 +1310,7 @@ tests today.
 
 - One schema, one contract. The canvas, the spec panel, the work-order compiler and the MCP server
   all read the same declaration.
-- Every existing `.v6r/spec/**.md` file stays valid. Additive optional fields plus a retained scalar
+- Every existing `.vousoir/spec/**.md` file stays valid. Additive optional fields plus a retained scalar
   `contract` means no migration and no flag day.
 - Two ways to express a contract exist during the deprecation window. Write the precedence rule
   (`contracts[]` wins; `contract` is a single untyped fallback) once, in the reader, and do not
@@ -1337,9 +1375,9 @@ that a later reader does not mistake their absence for an oversight.
 | Feature | Source | Note |
 |---|---|---|
 | **6. Integration Testing Across Modules** | `vousoir-source-of-truth.md:112-121` | Verifies that sibling modules under one parent work together once both are built. Needs M5 dispatch to be routine first. |
-| **7. Traceability View** | `:123-132` | Jump from node → generated code and back. `.v6r/traces/` (`v6r-layout.ts:20`) already reserves the storage; `vousoir-technical-spec.md:99` drafts `trace_code_to_spec` / `trace_spec_to_code` for the context server. |
+| **7. Traceability View** | `:123-132` | Jump from node → generated code and back. `.vousoir/traces/` (`v6r-layout.ts:20`) already reserves the storage; `vousoir-technical-spec.md:99` drafts `trace_code_to_spec` / `trace_spec_to_code` for the context server. |
 | **8. Contract Linter** | `:134-143` | Checks a built module's real boundary against its declared contract. This is what `verify_contracts` was for (dropped from the ADR-006 surface) and what the module-API / service-API / DB-schema contract split at `:186` is for. |
-| **11. Frontend/UX Whiteboard Mode** | `:166-175` | A separate freeform canvas. **Space is already reserved:** `V6R_SUBDIRS.whiteboards` exists in `typings/vousoir/src/v6r-layout.ts:18` (*"Frontend/UX canvases"*) and is in `V6R_COMMITTED_SUBDIRS`, so `v6rInit()` scaffolds `.v6r/whiteboards/` today. `vousoir-technical-spec.md:125` earmarks *"tldraw or equivalent"*, undecided. |
+| **11. Frontend/UX Whiteboard Mode** | `:166-175` | A separate freeform canvas. **Space is already reserved:** `V6R_SUBDIRS.whiteboards` exists in `typings/vousoir/src/v6r-layout.ts:18` (*"Frontend/UX canvases"*) and is in `V6R_COMMITTED_SUBDIRS`, so `v6rInit()` scaffolds `.vousoir/whiteboards/` today. `vousoir-technical-spec.md:125` earmarks *"tldraw or equivalent"*, undecided. |
 
 Also out of scope but drafted in `vousoir-technical-spec.md`: the trace store (`:97`), the context
 server with LSP brokering (`:99`), the harness-adapter interface for non-Claude agents (`:101-116`),
@@ -1376,7 +1414,7 @@ parsed JSON object directly, consistent with *"the schema is the contract"*
 (`vousoir-technical-spec.md:153`). Cheap to revisit: once M3 brings a YAML parser, converting a
 five-field manifest is trivial.
 
-### 3. Does a `*.v6r` file collide with the `.v6r/` directory?
+### 3. Does a `*.v6r` file collide with the `.vousoir/` directory?
 
 `V6R_ROOT_DIRNAME = '.v6r'` is a **directory** at the repo root; ADR-001 binds a custom editor to a
 `*.v6r` **file** glob. A file literally named `.v6r` would be ambiguous, and `filenamePattern:
@@ -1402,7 +1440,7 @@ to work invisibly"*.
 
 **Proposed:** M2 ships pure auto-layout with nothing persisted, and no drag-to-place. Revisit after
 the founder has used a real tree — the answer depends on whether manual placement is actually wanted
-once layout is good. Whatever the answer, positions go in `.v6r/cache/` and never in spec frontmatter
+once layout is good. Whatever the answer, positions go in `.vousoir/cache/` and never in spec frontmatter
 (ADR-003, ADR-008); since `cache` is the one gitignored subdir, deferring locks no file format and
 costs no git churn.
 
