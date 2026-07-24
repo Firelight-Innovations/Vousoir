@@ -26,7 +26,7 @@ Build outputs are written to `out/` (desktop), `dist/` (web), and `notebook-out/
 
 ### Running tests
 
-You can run the VS Code extension tests by running the `Markdown Extension Tests` target in VS Code. This will run the tests under `./src/test`
+You can run the Vousoir extension tests by running the `Markdown Extension Tests` target in Vousoir. This will run the tests under `./src/test`
 
 ### Updating the Markdown language service
 
@@ -36,7 +36,7 @@ Language features such as IntelliSense, validation, document links, and rename a
 
 - [`vscode-markdown-languageserver`](https://github.com/microsoft/vscode-markdown-languageserver) — a thin language server that wraps the language service and exposes it over the Language Server Protocol.
 
-This extension depends on `vscode-markdown-languageserver` and connects to it from `src/client/`. The code in `src/languageFeatures/` provides the VS Code-specific glue and the features that are not handled by the server.
+This extension depends on `vscode-markdown-languageserver` and connects to it from `src/client/`. The code in `src/languageFeatures/` provides the Vousoir-specific glue and the features that are not handled by the server.
 
 
 1. Update the language service **in the server**. The [server's contributing guide](https://github.com/microsoft/vscode-markdown-languageserver/blob/main/CONTRIBUTING.md) documents this, but in short you run the following in the `vscode-markdown-languageserver` repository and then publish a new server release:
