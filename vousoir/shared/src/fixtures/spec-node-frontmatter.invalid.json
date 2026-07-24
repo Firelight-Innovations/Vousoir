@@ -1,5 +1,47 @@
 [
 	{ "id": "", "title": "Empty id fails min(1)", "parent": null, "status": "specified" },
 	{ "id": "bad-status", "title": "Status value not in the enum", "parent": "root", "status": "in_progress" },
-	{ "title": "Missing required id field", "parent": "root", "status": "unspecified" }
+	{ "title": "Missing required id field", "parent": "root", "status": "unspecified" },
+	{
+		"id": "bad-contract-kind",
+		"title": "Contract kind outside the moduleApi|serviceApi|dbSchema enum",
+		"parent": "root",
+		"status": "specified",
+		"contracts": [{ "id": "c-1", "kind": "restApi", "name": "GET /modules", "body": "…" }]
+	},
+	{
+		"id": "contract-without-name",
+		"title": "A contract must be named",
+		"parent": "root",
+		"status": "specified",
+		"contracts": [{ "id": "c-1", "kind": "moduleApi", "body": "…" }]
+	},
+	{
+		"id": "contract-with-empty-id",
+		"title": "A contract id must be non-empty",
+		"parent": "root",
+		"status": "specified",
+		"contracts": [{ "id": "", "kind": "moduleApi", "name": "SpecStore.load", "body": "…" }]
+	},
+	{
+		"id": "contracts-not-an-array",
+		"title": "The scalar contract field is the deprecated form; contracts must be a list",
+		"parent": "root",
+		"status": "specified",
+		"contracts": "a bare string is the old `contract` field, not `contracts`"
+	},
+	{
+		"id": "non-string-given",
+		"title": "Given/when/then are prose, not numbers",
+		"parent": "root",
+		"status": "specified",
+		"testCases": [{ "id": "tc-1", "description": "d", "expected": "e", "given": 42 }]
+	},
+	{
+		"id": "test-case-missing-expected",
+		"title": "expected stays required even alongside given/when/then",
+		"parent": "root",
+		"status": "specified",
+		"testCases": [{ "id": "tc-1", "description": "d", "given": "g", "when": "w", "then": "t" }]
+	}
 ]
