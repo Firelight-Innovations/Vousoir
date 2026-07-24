@@ -12,11 +12,20 @@ dispatch · orchestration+MCP). Each was verified against the tree at commit `3c
 `v6r/mvp` — every `path:line` in an **Evidence** block was opened and read, and citations that did
 not survive that check are called out in the decision text rather than quietly dropped.
 
-Three of these ADRs deviate from a brief or a prior document. Those deviations are stated in the
+Four of these ADRs deviate from a brief or a prior document. Those deviations are stated in the
 **Context** section of the ADR that makes them, not buried: ADR-001 deviates from the milestone
-brief's core-contrib layout, ADR-002 from its `.v6r` JSON persistence, and ADR-003 from an
-already-made Stage 3 tech-stack selection. All are pending user review and all are cheap to
-overrule.
+brief's core-contrib layout, ADR-002 from its `.v6r` JSON persistence, ADR-003 from an already-made
+Stage 3 tech-stack selection, and ADR-008 from six of the brief's field names. All are pending user
+review and all are cheap to overrule.
+
+**A path convention that has already produced one false finding.** The git repo root is
+`…/Projects/vousoir/vousoir` — a doubled directory name — and the Vousoir layer lives in a `vousoir/`
+subdirectory of it. So the repo-relative path `vousoir/PATCHES.md` resolves to
+`…/Projects/vousoir/vousoir/vousoir/PATCHES.md`: **three** `vousoir` segments. An agent that
+resolved it with two concluded the file did not exist and reported that as fact. In this worktree the
+same file is `…/Projects/vousoir/vousoir-v6r/vousoir/PATCHES.md`. Every path in this document is
+repo-relative in the conventional sense (`vousoir/PATCHES.md` means the Vousoir layer's ledger); use
+absolute paths when checking, and never write "does not exist" without one.
 
 This file is a new, purely additive document. Per `vousoir/PATCHES.md:110-119` — *"Everything else
 added so far is **purely additive** — new files and directories that do not exist upstream … Additive
@@ -33,7 +42,8 @@ files are *not* core patches"* — it needs no `PATCHES.md` entry, even though `
 | ADR-004 | Ship webview assets as extension files via `asWebviewUri` | Accepted | Canvas JS/CSS are real files under `media/`, loaded through `asWebviewUri` + `localResourceRoots` under a nonce CSP. No CDN, no network. |
 | ADR-005 | Dispatch Claude Code from the extension host via `child_process` | Accepted | M5 spawns `claude -p …` from extension-host Node code with `ELECTRON_RUN_AS_NODE=1`; no new IPC service. |
 | ADR-006 | The MCP server is a standalone stdio node script, not in-process | Accepted | M6 ships `vousoir/services/spec-mcp/` as its own package with its own `main.ts`, launched by an external `claude` via `claude mcp add`; nine tools over `.v6r/spec/`. |
-| ADR-007 | Develop in a git worktree with junctioned dependencies | Accepted (debt) | Work in `../vousoir-v6r` on `v6r/mvp`; `node_modules` and `build/node_modules` are junctions, `out/` is a real copy. Time-boxed debt with a documented undo. |
+| ADR-007 | Develop in a git worktree with junctioned dependencies | Accepted (debt) | Work in `../vousoir-v6r` on `v6r/mvp`; `node_modules` and `build/node_modules` are junctions, `out/` is a real copy. Time-boxed debt with a documented undo — and it has already broken one build command. |
+| ADR-008 | Extend the existing spec-node schema; never fork it | Accepted | M1 adds typed `contracts[]` and given/when/then test fields to `specNodeFrontmatterSchema` in place; it does not introduce a parallel `ModuleNode` type, and it does not add `position`. |
 
 ---
 
@@ -123,6 +133,25 @@ fine; a large file is not.
 - Zero core patches for the canvas. `git diff 1.130.0` stays empty for everything M1–M6 adds.
 - The model types in `@vousoir/typings` are importable by the canvas, the spec panel, the dispatcher,
   and the MCP server alike — one declaration, four consumers.
+- **The inner loop is half a second.** Building `vousoir-core` alone via its own `esbuild.mts` was
+  measured at **0.28 s** (exit 0) in this worktree. The equivalent core-contrib loop is
+  `typecheck-client` plus a workbench rebuild — `typecheck-client` alone measured **6.5 s**, and it
+  only type-checks. A ~20× faster edit-run cycle across M2, M3 and M5 is on its own a strong argument
+  for the extension, independent of the boundary wall.
+- **The canvas can only see what `@vousoir/typings`' barrel exports.** `typings/vousoir/package.json`
+  seals the package: `exports` maps `"."` to `./src/index.ts` and nothing else, so a deep import like
+  `@vousoir/typings/src/spec-node-frontmatter.ts` fails at resolution with
+  `ERR_PACKAGE_PATH_NOT_EXPORTED`. `src/index.ts` already re-exports `spec-node-frontmatter.ts`,
+  `v6r-layout.ts`, `service-host-protocol.ts`, `service-lifecycle.ts` and `trace-event.ts`, so M1's
+  model types are reachable today — but **anything ADR-008 adds must be re-exported from the barrel
+  or the canvas cannot import it.** Same for `@vousoir/shared`, whose barrel currently exports only
+  `v6rInit`.
+- **`vousoir-core` is ESM, and the canvas code must match.** `esbuild.mts` sets `format: 'esm'` and
+  `external: ['vscode']`; `package.json` sets `"type": "module"`. Its own docblock explains why this
+  is load-bearing rather than incidental: the extension host picks its loader from that same
+  `"type"` field, so an entry point that is not `.cjs` under `"type": "module"` is loaded via
+  `import()`, not `require()`. No `require()`, no `__dirname`, no CommonJS interop shortcuts in new
+  extension-host code.
 - The canvas runs in a webview, not in the workbench renderer. It gets no direct access to workbench
   services (`IEditorService`, `IInstantiationService`, …); everything crosses the `postMessage`
   seam. This is a real constraint on M2/M3 and is the price of the boundary.
@@ -174,6 +203,24 @@ fine; a large file is not.
   `doPackageLocalExtensionsStream` — the auto-discovery sweep.
 - `build/lib/extensions.ts:69` — `let hasEsbuild = fs.existsSync(path.join(extensionPath,
   esbuildConfigFileName));` in `fromLocal`, with `esbuildConfigFileName = 'esbuild.mts'` for desktop.
+- `extensions/vousoir-core/esbuild.mts:5-7` — the fork's own statement of the same fact:
+  *"`build/lib/extensions.ts#fromLocal` auto-detects this file per extension folder (`fs.existsSync`)
+  - no code-oss core file needs to list vousoir-core for the production/packaging build to pick it
+  up."*
+- `extensions/vousoir-core/esbuild.mts:26-36` — `run({ platform: 'node', format: 'esm', entryPoints:
+  { 'extension': … }, … additionalOptions: { external: ['vscode'] } }, process.argv);`
+- `extensions/vousoir-core/esbuild.mts:13-19` — *"Output format is ESM, not the CJS every other
+  built-in extension here uses … the extension host picks its loader from that same field
+  (`src/vs/workbench/api/common/extHostExtensionService.ts#_isESM`: `type === 'module'` and the entry
+  point doesn't end in `.cjs` -> loaded via `import()`, not `require()`)."*
+- `typings/vousoir/package.json` — `"exports": { ".": { "types": "./src/index.ts", "default":
+  "./src/index.ts" } }` — the seal.
+- `typings/vousoir/src/index.ts:9-11` — *"This barrel is the package's ONLY entry point: `exports`
+  seals everything else, so a deep import such as `@vousoir/typings/src/...` fails with
+  ERR_PACKAGE_PATH_NOT_EXPORTED. Anything a sibling package needs must be re-exported here."*
+- Measured in this worktree: `node --experimental-strip-types ./esbuild.mts` in
+  `extensions/vousoir-core` → exit 0 in **0.28 s**; `npm run typecheck-client` at repo root → exit 0
+  in **6.48 s**.
 - `src/vscode-dts/vscode.d.ts:11781` — `export function registerCustomEditorProvider(viewType:
   string, provider: CustomTextEditorProvider | CustomReadonlyEditorProvider | CustomEditorProvider,
   options?: {`
@@ -255,8 +302,11 @@ section of the technical spec is superseded.
 3. The `*.v6r` file that `registerCustomEditorProvider` binds to (ADR-001) is a **small project
    manifest** — project name, schema version, and a pointer to the spec directory — not the model.
    Opening it opens the canvas; the canvas reads the tree from `.v6r/spec/`.
-4. Do not change `specNodeFrontmatterSchema` for M1. Extend it only when a milestone needs a field
-   that is not there, and extend it in `typings/` where every consumer sees it.
+4. The node schema is `specNodeFrontmatterSchema` in `@vousoir/typings`. It is **extended in place**,
+   never forked into a parallel model type — see **ADR-008**, which specifies exactly what M1 adds
+   and what it deliberately refuses to rename.
+5. Node **positions are never written to spec frontmatter**. They are derived from the tree and
+   cached under `.v6r/cache/` — see ADR-003 and ADR-008.
 
 ### Consequences
 
@@ -272,10 +322,8 @@ section of the technical spec is superseded.
   as a visible warning on the node, not a silent re-parent or a crash.
 - `behaviour` (British) is the shipped field name and stays. Use it verbatim in code; American
   "behavior" is fine in prose and UI labels.
-- `contract` is a single optional string today, not three typed contracts.
-  `vousoir-source-of-truth.md:186` defers *"Contract verification mechanics per contract type (module
-  API, service API, DB schema)"* — that split is only needed by the deferred contract linter, so the
-  single string carries M1–M5 unchanged. See Open Question 4.
+- `contract` is a single optional string today. ADR-008 adds a typed `contracts[]` array beside it
+  and keeps the scalar accepted for back-compat.
 - `.v6r/cache/` is gitignored by the scaffolder (`V6R_GITIGNORED_SUBDIRS`). Nothing that must survive
   a clone may live there.
 
@@ -396,6 +444,18 @@ of 150 lines, with no layout-library dependency. Keep it a **pure function** —
 Run it on **structural** mutations only: node added, node deleted, node re-parented, node renamed if
 the label changes measured width. Do **not** run it on spec-text edits.
 
+**Node positions are derived data and are never written to spec frontmatter.** They are computed
+from the tree on every structural mutation and, if cached at all, cached under `.v6r/cache/`. The
+existing design already makes this call: `v6r-layout.ts:24` describes that directory as *"SQLite
+index over specs+traces, **layout cache** — derived data, regenerable"*, and `:35` puts `cache` in
+`V6R_GITIGNORED_SUBDIRS` while `:32` commits `spec`, `whiteboards`, `traces` and `docs` to git. So
+the folder layout already classifies layout as regenerable, gitignored, non-authored data — which is
+exactly right for a product where auto-layout is the default behaviour. Writing positions into
+frontmatter would put churn into every spec file on every layout pass, producing git diffs that are
+noise rather than intent, and directly undermining the Portable Spec Files requirement that ADR-002
+serves. The milestone brief's `position` field is therefore **dropped from the M1 model surface**
+(ADR-008).
+
 ### Consequences
 
 - One less dependency in `vousoir/pnpm-lock.yaml`, and no React/React Flow runtime in the webview for
@@ -456,8 +516,11 @@ the label changes measured width. Do **not** run it on spec-text edits.
   for `zod`, `vitest`, or `dependency-cruiser` (grep returns nothing); `build/hygiene.ts` contains no
   `cgmanifest`/`ThirdPartyNotices` reference; `.github/workflows/vousoir-ci.yml` runs only
   `pnpm run lint:strict`, `dep-check`, `typecheck`, `test`, and `npm run compile`.
-- `typings/vousoir/src/v6r-layout.ts:24` — *"SQLite index over specs+traces, **layout cache** —
-  derived data, regenerable"* — where any future persisted layout belongs.
+- `typings/vousoir/src/v6r-layout.ts:23-25` — `/** SQLite index over specs+traces, layout cache —
+  derived data, regenerable. */ cache: 'cache',` — layout is already classified as derived data.
+- `typings/vousoir/src/v6r-layout.ts:32,35` — `V6R_COMMITTED_SUBDIRS = ['spec', 'whiteboards',
+  'traces', 'docs']` / `V6R_GITIGNORED_SUBDIRS = ['cache']` — `cache` is the one gitignored subdir,
+  so anything stored there is by construction regenerable and produces no git churn.
 
 ---
 
@@ -827,6 +890,17 @@ Every tool's input and output is a zod schema in `@vousoir/typings`, per
 derived from schemas — the schema is the contract"* — and per `CONTRIBUTING.md:45-46`, which already
 names *"future MCP tool payloads"* as belonging there.
 
+**Two constraints on where those schemas can live.** First, `@vousoir/typings` compiles with
+`"types": []` (`vousoir/tsconfig.base.json`, and `typings/vousoir/tsconfig.json` does not opt back
+in) — **no ambient Node or DOM types**. `service-host-protocol.ts:16-17` states the rule for authors:
+*"Keep these declarations to primitives, zod, and each other."* An MCP schema that reaches for
+`Buffer`, `URL`, `NodeJS.*`, or any DOM type does not belong in `typings/`; the concrete server
+implementation in `vousoir/services/spec-mcp/` opts into `"types": ["node"]` and holds that code.
+Second, `typings-only-imports-zod` (`.dependency-cruiser.cjs:49-55`) forbids `typings/` from
+importing anything but zod and its own siblings — so the MCP SDK itself can never be imported there,
+only the schemas that describe its payloads. Everything the server exposes must also be re-exported
+from `typings/vousoir/src/index.ts`, or the sealed barrel makes it unreachable (ADR-001).
+
 ### Consequences
 
 - The MCP server works with Vousoir closed. An agent in a terminal can read and edit the spec with no
@@ -889,6 +963,13 @@ names *"future MCP tool payloads"* as belonging there.
   derived from schemas — the schema is the contract."*
 - `vousoir-technical-spec.md:156` — *"**Every service = its own package** with an explicit public
   surface (its MCP tool schemas)."*
+- `vousoir/tsconfig.base.json` — `"types": []` with the rationale *"Default to NO ambient @types …
+  Packages needing ambient types opt in explicitly, e.g. `\"types\": [\"node\"]`."*
+- `typings/vousoir/src/service-host-protocol.ts:16-17` — *"NOTE: @vousoir/typings compiles with
+  `\"types\": []` — no ambient Node or DOM types. Keep these declarations to primitives, zod, and each
+  other."*
+- `.dependency-cruiser.cjs:49-55` — `name: 'typings-only-imports-zod'`, *"`typings/` contains only
+  type declarations and zod schemas. It may import nothing except zod (and its own sibling files)."*
 - `vousoir/CONTRIBUTING.md:97-106` — the five-step "Adding a package" checklist `spec-mcp` must follow;
   *"A new package must be born green."*
 - `vousoir/services/service-host/src/main.ts`, `vousoir/services/service-host/src/parent-watchdog.ts`,
@@ -935,33 +1016,39 @@ here. It is accepted anyway, knowingly, because the Vousoir-layer toolchain
 verifies clean — but the warning is real and the first unexplained code-oss build failure in the v6r
 worktree should be triaged as a junction problem before anything else.
 
-**The dev loop, verified.** `.claude/CLAUDE.md` in the main worktree is titled *"VS Code Copilot
-Instructions"* — it is the **inherited upstream** file, not a Vousoir-authored one, which matters when
-weighing its rules. It says, at `:56`, *"NEVER use `npm run compile` to compile TypeScript files"*;
-at `:60`, *"if you only changed code under `src/`, run `npm run typecheck-client`"*; at `:61`, *"If
-you changed built-in extensions under `extensions/` … run the corresponding gulp task `npm run gulp
-compile-extensions`"*. Both scripts exist at repo root (`package.json:27` and `:49`).
+**The agent-guidance files, located precisely.** `.claude/CLAUDE.md` at the repo root is a
+**symbolic link to `../.github/copilot-instructions.md`** — verified. Its title is *"VS Code Copilot
+Instructions"*. It is inherited upstream VS Code guidance, not a Vousoir-authored rule, and should be
+attributed that way. Its content is still correct and still binding for core work: `:56` *"NEVER use
+`npm run compile` to compile TypeScript files"*; `:60` *"if you only changed code under `src/`, run
+`npm run typecheck-client`"*; `:61` *"If you changed built-in extensions under `extensions/` … run the
+corresponding gulp task `npm run gulp compile-extensions`"*. Both scripts exist at repo root
+(`package.json:27` and `:49`).
 
-Two caveats on that file, both verified: the fork's own CI runs `npm run compile` in its
-cross-platform build job (`.github/workflows/vousoir-ci.yml`), so the "NEVER" is guidance for the
-incremental dev loop, not an absolute prohibition; and `.claude/CLAUDE.md:134` demands *"All files must
-include Microsoft copyright header"*, which `PATCHES.md` #7 and #8 explicitly exempt the Vousoir layer
-from. Treat the inherited file as advisory for core, superseded by `vousoir/CONTRIBUTING.md` for the
-Vousoir layer.
+Two caveats, both verified: the fork's own CI runs `npm run compile` in its cross-platform build job
+(`.github/workflows/vousoir-ci.yml`), so the "NEVER" is guidance for the incremental dev loop, not an
+absolute prohibition; and `:134` demands *"All files must include Microsoft copyright header"*, which
+`PATCHES.md` #7 and #8 explicitly exempt the Vousoir layer from. Treat the inherited file as advisory
+for core and superseded by `vousoir/CONTRIBUTING.md` for the Vousoir layer.
 
-**`.claude/` does not exist in the v6r worktree.** It is gitignored (`.gitignore:40` — `.claude/`), so
-neither `CLAUDE.md` nor the `launch` skill came across with the worktree. Both live only at
-`C:/Users/bjsea/Documents/Projects/vousoir/vousoir/.claude/`.
+**The `launch` skill is tracked at `.agents/skills/launch/`, at the repo root** — `SKILL.md`,
+`scripts/launch.sh`, `scripts/monaco-paste.sh`. `.claude/skills` is a **junction pointing at
+`.agents/skills`**, and the two `SKILL.md` files hash identically. This matters for the worktree:
+`.claude/` is gitignored (`.gitignore:40`) and is absent from `vousoir-v6r`, but **`.agents/` is
+tracked and is present**, so the skill itself did come across. Only the `.claude/` view of it and the
+`CLAUDE.md` symlink did not. Do not add `.claude/` to the v6r worktree; read `.agents/skills/launch/`
+directly.
 
-**The `launch` skill does not run on this machine.** `SKILL.md:21` states its prerequisite: *"macOS or
-Linux. The launcher is a bash script and depends on `rsync`, `curl`, `nohup`, and Node on `PATH`."*
-This is Windows 11. It is also stale relative to the fork: it is built around seeding an
-*authenticated* Copilot profile and exposes an `agentHostPort` (`--inspect-agenthost`) for
-`src/vs/platform/agentHost/`, and `PATCHES.md` Layer 2 records that the agents window
-(`src/vs/sessions/`), `platform/agentHost`, and all chat were physically deleted. Confirmed by
-inspection: `src/vs/sessions`, `src/vs/platform/agentHost`, and `src/vs/workbench/contrib/vousoir` all
-return `False` for `Test-Path`. Use `scripts/code.bat` for a Windows launch — that is what every §9
-acceptance test uses per `PATCHES.md:318`.
+**The `launch` skill cannot run on this machine, and its content is stale.** `SKILL.md:21` states the
+prerequisite: *"macOS or Linux. The launcher is a bash script and depends on `rsync`, `curl`,
+`nohup`, and Node on `PATH`."* This is Windows 11 — `launch.sh` would need Git Bash plus `rsync`,
+which is not part of a default Git-for-Windows install. It is also stale relative to the fork: it is
+built around seeding an *authenticated* Copilot profile and exposes an `agentHostPort`
+(`--inspect-agenthost`) for `src/vs/platform/agentHost/`, and `PATCHES.md` Layer 2 records that the
+agents window (`src/vs/sessions/`), `platform/agentHost`, and all chat were physically deleted.
+Confirmed: `src/vs/sessions`, `src/vs/platform/agentHost`, and `src/vs/workbench/contrib/vousoir` all
+return `False` for `Test-Path`. Use `scripts/code.bat` for a Windows launch — what every §9 acceptance
+test uses, per `PATCHES.md:318`.
 
 ### Decision
 
@@ -986,18 +1073,50 @@ cmd /c rmdir "C:\Users\bjsea\Documents\Projects\vousoir\vousoir-v6r\build\node_m
 git -C C:/Users/bjsea/Documents/Projects/vousoir/vousoir worktree remove ../vousoir-v6r
 ```
 
-**Verified dev loop:**
+**Verified dev loop.** Every command below was run in the v6r worktree; results and wall-clock times
+are measured, not estimated.
 
-| Change | Command |
-|---|---|
-| Vousoir layer (`typings/`, `vousoir/`, `extensions/vousoir-*`) | `cd vousoir; pnpm run verify` |
-| `src/` (core) | `npm run typecheck-client` |
-| `extensions/` | `npm run gulp compile-extensions` |
-| Launch on Windows | `scripts/code.bat` (**not** the `launch` skill — macOS/Linux only) |
+| Change | Command | Result |
+|---|---|---|
+| `extensions/vousoir-core` (the M2/M3/M5 inner loop) | `cd extensions/vousoir-core; node --experimental-strip-types ./esbuild.mts` | **exit 0, 0.28 s** |
+| Vousoir layer (`typings/`, `vousoir/`, `extensions/vousoir-*`) | `cd vousoir; pnpm run verify` | **exit 0**, 9 files, **22 tests** (shared 6, service-host 10, boundary-tests 6) |
+| `src/` (core) | `npm run typecheck-client` | **exit 0, 6.48 s** |
+| all `extensions/` | `npm run gulp compile-extensions` | **FAILS — see below** |
+| Launch on Windows | `scripts/code.bat` | (**not** the `launch` skill — macOS/Linux only) |
 
-`pnpm run verify` was run in the v6r worktree during this ADR's preparation: **exit code 0**, 9 test
-files, **22 tests passed** (`shared` 6, `services/service-host` 10, `boundary-tests` 6), covering
-lint:strict, dep-check, typecheck, and test.
+**Use the 0.28 s single-extension build as the inner loop for M2, M3 and M5.** It is the whole
+edit-run cycle for canvas work and it is roughly 20× faster than even a bare `typecheck-client`.
+`pnpm run verify` is the gate before committing, not the loop.
+
+**`npm run gulp compile-extensions` fails in this worktree, and the junctions are why.** The error is
+`error TS2688: Cannot find type definition file for 'node'`, hitting `extensions/grunt` and
+`extensions/notebook-renderers`. It would be easy — and wrong — to file this as pre-existing. The
+actual cause, traced:
+
+- Both extensions' `tsconfig.json` pin `"typeRoots": ["./node_modules/@types"]` — the **extension's
+  own** `node_modules`, not the repo root's.
+- In `vousoir-v6r`, `extensions/grunt/node_modules`, `extensions/git/node_modules` and
+  `extensions/notebook-renderers/node_modules` **do not exist**.
+- In the main worktree, all three **do** exist.
+- The root `package.json:22` declares `"postinstall": "node build/npm/postinstall.ts"`, which is what
+  populates them. It ran there during `npm ci`. It has never run here, because this worktree never
+  ran `npm install` — its root `node_modules` was junctioned in instead, and a junction shares only
+  that one directory. The per-extension `node_modules` folders are separate paths inside each
+  worktree.
+- The fork's only changes to those two extensions since `1.130.0` are display-string rebranding
+  (`"Grunt support for VS Code"` → `"…for Vousoir"`, and one notebook renderer `displayName`).
+  Nothing touched their tsconfigs or dependencies.
+
+So this is **not** a pre-existing upstream defect and **not** a de-branding regression. It is the
+first concrete instance of exactly what `SKILL.md:22` warned about — *"breaks builds in subtle ways"*.
+The fix is to run a real `npm ci` (or at minimum the postinstall) in this worktree, **not** to add
+`@types/node` to two upstream tsconfigs, which would spend two core patches papering over a local
+environment gap.
+
+Until then: `compile-extensions` cannot serve as a green-build gate here, and its failure must not be
+mistaken for a regression introduced by v6r work. `vousoir-core` is unaffected — it builds through its
+own `esbuild.mts`, not the gulp/tsc pipeline, which is why the 0.28 s loop succeeds while
+`compile-extensions` does not.
 
 ### Consequences
 
@@ -1007,11 +1126,14 @@ lint:strict, dep-check, typecheck, and test.
   coordinate, reinstall once, and re-verify both branches. The Vousoir layer's own
   `vousoir/node_modules` is separate and lower-risk, but the same discipline applies to
   `vousoir/pnpm-lock.yaml`.
-- The repo's own `launch` skill warns this breaks code-oss builds "in subtle ways". Triage any
-  unexplained core build failure in the v6r worktree by first doing a real `npm ci` there.
-- `.claude/` is gitignored and absent from the v6r worktree. Agent guidance and the `launch` skill are
-  only reachable at the main worktree path. Do not add `.claude/` to the v6r worktree — it would
-  fork the guidance.
+- **The warning has already come true once.** `SKILL.md:22` says sibling-worktree linking *"breaks
+  builds in subtle ways"*; `compile-extensions` is that breakage, and it presents as a type error in
+  two unrelated upstream extensions rather than as anything resembling a dependency problem. Triage
+  any unexplained core build failure here by first running a real `npm ci` in this worktree — before
+  suspecting the code.
+- `.claude/` is gitignored and absent from the v6r worktree, so the `CLAUDE.md` symlink is not
+  reachable here. The `launch` skill **is** present, at the tracked `.agents/skills/launch/`. Do not
+  add `.claude/` to the v6r worktree — it would fork the guidance.
 - Two `out/` directories means two full code-oss builds' worth of disk. That is the price of not
   corrupting the user's build, and it is the right trade.
 - This is **time-boxed debt**. When `phase-2-links` lands and the branches converge, collapse to one
@@ -1026,10 +1148,11 @@ lint:strict, dep-check, typecheck, and test.
 - **Junctioning `out/` as well.** Rejected on the stated risk — a shared `out/` means the v6r build
   silently overwrites the user's main build output with no warning and no way to tell which branch
   produced the running app.
-- **A real `npm ci` in the v6r worktree (what the `launch` skill prescribes).** Not rejected on
-  merit — it is the correct answer and is the fallback the moment anything looks wrong. Deferred only
-  for install time, and only because M1–M6 exercises the pnpm-managed Vousoir layer rather than the
-  npm-managed code-oss build.
+- **A real `npm ci` in the v6r worktree (what the `launch` skill prescribes).** Not rejected — it is
+  the correct answer, and the `compile-extensions` failure above shows the junction shortcut has
+  already cost something real. It is deferred only because M1–M6 exercises the pnpm-managed Vousoir
+  layer, which verifies clean, rather than the npm-managed code-oss build. **Run it the moment M2
+  needs a full extension build, or the moment any core build failure is not immediately explicable.**
 
 ### Evidence
 
@@ -1038,15 +1161,18 @@ lint:strict, dep-check, typecheck, and test.
 - Verified live: `vousoir-v6r/node_modules` and `vousoir-v6r/build/node_modules` both report
   `LinkType: Junction` with targets under `vousoir/`; `vousoir-v6r/out` reports an empty `LinkType`
   (a real directory).
-- `vousoir/.claude/skills/launch/SKILL.md:22` — *"A VS Code checkout with `node_modules/` installed
-  (`npm install` if missing — do **not** symlink from a sibling worktree; that breaks builds in subtle
+- `.agents/skills/launch/SKILL.md:22` — *"A VS Code checkout with `node_modules/` installed (`npm
+  install` if missing — do **not** symlink from a sibling worktree; that breaks builds in subtle
   ways)."*
-- `vousoir/.claude/skills/launch/SKILL.md:21` — *"macOS or Linux. The launcher is a bash script and
-  depends on `rsync`, `curl`, `nohup`, and Node on `PATH`."*
-- `vousoir/.claude/skills/launch/SKILL.md:23` — *"Run `npm run compile` once (one-shot) or `npm run
-  watch` for incremental rebuilds."* — in direct tension with `.claude/CLAUDE.md:56`.
-- `.claude/CLAUDE.md:1` — *"# VS Code Copilot Instructions"* — the file is inherited upstream, not
-  Vousoir-authored.
+- `.agents/skills/launch/SKILL.md:21` — *"macOS or Linux. The launcher is a bash script and depends on
+  `rsync`, `curl`, `nohup`, and Node on `PATH`."*
+- `.agents/skills/launch/SKILL.md:23` — *"Run `npm run compile` once (one-shot) or `npm run watch` for
+  incremental rebuilds."* — in direct tension with `.claude/CLAUDE.md:56`.
+- Verified: `.claude/skills` is a **Junction** to `.agents/skills`; the two `launch/SKILL.md` files
+  hash identically; `git ls-files .agents` lists `SKILL.md`, `launch.sh`, `monaco-paste.sh` while
+  `git ls-files .claude` is empty.
+- `.claude/CLAUDE.md` — a **SymbolicLink** with target `..\.github\copilot-instructions.md`; its
+  first line is *"# VS Code Copilot Instructions"*. Inherited upstream, not Vousoir-authored.
 - `.claude/CLAUDE.md:56` — *"NEVER use `npm run compile` to compile TypeScript files"*.
 - `.claude/CLAUDE.md:60` — *"run `npm run typecheck-client` after making changes to type-check the main
   VS Code sources (it validates `./src/tsconfig.json`)"*.
@@ -1061,11 +1187,145 @@ lint:strict, dep-check, typecheck, and test.
   CLAUDE.md are absent from the v6r worktree.
 - `vousoir/package.json:21` — `"verify": "pnpm run lint:strict && pnpm run dep-check && pnpm run
   typecheck && pnpm run test"`.
-- Verified run in the v6r worktree: `pnpm run verify` → exit code 0; `shared` 6 tests, `service-host`
-  10 tests, `boundary-tests` 6 tests = **22 passed**.
+- Verified runs in the v6r worktree: `pnpm run verify` → exit 0, **22 passed**; `npm run
+  typecheck-client` → exit 0, **6.48 s**; `node --experimental-strip-types ./esbuild.mts` in
+  `extensions/vousoir-core` → exit 0, **0.28 s**; `npm run gulp compile-extensions` → **exit 1**,
+  `error TS2688: Cannot find type definition file for 'node'`.
+- `extensions/grunt/tsconfig.json` and `extensions/notebook-renderers/tsconfig.json` both set
+  `"types": ["node"]` with `"typeRoots": ["./node_modules/@types"]` — the extension's own
+  `node_modules`, which does not exist in this worktree.
+- Verified: `extensions/{grunt,git,notebook-renderers}/node_modules` → `False` in `vousoir-v6r`,
+  `True` in the main worktree. `package.json:22` — `"postinstall": "node build/npm/postinstall.ts"`.
+- `git diff 1.130.0 -- extensions/grunt/package.json extensions/notebook-renderers/package.json`
+  shows only display-string rebranding, confirming the fork did not cause the type error.
 - `vousoir/PATCHES.md:318` — *"every §9 acceptance test runs from source via `scripts/code.bat`"*.
 - `Test-Path` verified `False` for `src/vs/sessions`, `src/vs/platform/agentHost`, and
   `src/vs/workbench/contrib/vousoir` — the `launch` skill's agent-host surface no longer exists.
+
+---
+
+## ADR-008 — Extend the existing spec-node schema; never fork it
+
+**Status:** Accepted (2026-07-24)
+**Deciders:** orchestrating agent, pending user review
+
+### Context
+
+ADR-002 established that node specs are markdown + YAML frontmatter validated by the **already
+shipped** `specNodeFrontmatterSchema`. This ADR settles what M1 is allowed to do to that schema.
+
+The milestone brief specified a model type that does not match the shipped one. Verified against
+`typings/vousoir/src/spec-node-frontmatter.ts`, there are **six** differences:
+
+| Brief | Shipped | Note |
+|---|---|---|
+| `name` | `title` | pure rename |
+| `behavior` | `behaviour` | British spelling, already committed and tested |
+| `contracts: Contract[]` with `kind: moduleApi \| serviceApi \| dbSchema` | `contract?: string` | one free-form string; **the brief is right that this should be typed** |
+| test cases with given/when/then + optional snippet | `{ id, description, expected }` | all three `z.string().min(1)` |
+| `children` | *(absent)* | the tree is derived from `parent` pointers |
+| `position` | *(absent)* | see ADR-003 — layout is derived data |
+
+These are not all the same kind of difference, and treating them uniformly would be a mistake. Two
+are cosmetic renames of committed, tested, cross-package identifiers. One (`contracts`) is a genuine
+modelling gap the brief is right about — typed boundary contracts are the *"edges, not substance"*
+thesis of the product, and `vousoir-source-of-truth.md:186` names exactly those three kinds. One
+(test-case structure) is an ergonomics improvement that can be made additively. Two (`children`,
+`position`) are fields that should not exist at all.
+
+The constraint that shapes the answer: `vousoir/CONTRIBUTING.md:43-47` requires every cross-package
+shape to live in `typings/vousoir` and states *"**No package redeclares a shared shape locally.**"*
+`PATCHES.md` A3 records what happens when that is ignored — two work-packages independently produced
+*"the **same type names** `@vousoir/typings` exports, with different shapes"* — and notes the
+enforcement gap: *"dependency-cruiser could not catch this. It tracks *imports*, not *duplicated
+declarations*."* A second model type would not fail CI. It would just quietly become a second source
+of truth.
+
+### Decision
+
+M1 **extends `specNodeFrontmatterSchema` in place**. It does not introduce a parallel `ModuleNode`
+type.
+
+**Keep unchanged:** `id`, `title`, `parent`, `status`, and the British `behaviour`. Renaming committed
+identifiers to match the brief's prose would touch `@vousoir/typings`, the golden fixtures, and the
+`shared` tests for zero user-visible gain.
+
+**Add `contracts`:** `contracts: z.array(contractSchema).optional()`, where `contractSchema` carries
+`kind: z.enum(['moduleApi', 'serviceApi', 'dbSchema'])` plus the contract body. This is the one place
+the brief is straightforwardly right, and it is the product's core abstraction. The existing scalar
+`contract?: string` is **kept and accepted** as deprecated back-compat, so every spec file valid today
+stays valid; a reader prefers `contracts[]` when present and falls back to `contract`.
+
+**Extend test cases additively:** add optional `given` / `when` / `then` / `snippet` to
+`specNodeTestCaseSchema`, keeping `description` and `expected` required. Optional zod fields are
+non-breaking by construction.
+
+**Do not add `children`** — it is derivable from `parent` and a stored copy is a denormalisation that
+can disagree with the pointers. **Do not add `position`** — layout is derived, regenerable data that
+belongs in `.v6r/cache/` (ADR-003).
+
+Everything added must be re-exported from `typings/vousoir/src/index.ts`, or the sealed barrel makes
+it unreachable from the extension (ADR-001). Every change must leave `pnpm run verify` green — 22
+tests today.
+
+### Consequences
+
+- One schema, one contract. The canvas, the spec panel, the work-order compiler and the MCP server
+  all read the same declaration.
+- Every existing `.v6r/spec/**.md` file stays valid. Additive optional fields plus a retained scalar
+  `contract` means no migration and no flag day.
+- Two ways to express a contract exist during the deprecation window. Write the precedence rule
+  (`contracts[]` wins; `contract` is a single untyped fallback) once, in the reader, and do not
+  duplicate it per consumer.
+- The work-order compiler (M4) gets typed contracts to render section headings from, and the contract
+  linter — deferred, Feature 8 — gets the `kind` discriminator it will need without a later migration.
+- `behaviour` vs "behavior" will keep looking like a typo to every new reader. Note it once in code so
+  nobody "fixes" it.
+- The golden fixtures (`vousoir/shared/src/fixtures/spec-node-frontmatter.{valid,invalid}.json`) must
+  grow cases for the new fields, including one asserting a legacy scalar-`contract` file still passes.
+
+### Rejected alternatives
+
+- **A fresh `ModuleNode` type matching the brief's field names, alongside the existing schema.**
+  Rejected. The schema is the contract, and two contracts is no contract. `PATCHES.md` A3 documents
+  this exact failure already occurring once in this codebase, and notes that neither enforcement wall
+  catches it — so the cost would be paid in review attention forever.
+- **Renaming `behaviour` → `behavior` and `title` → `name` to match the brief.** Rejected: a breaking
+  change to committed, tested, cross-package identifiers for a spelling preference. If the user wants
+  the rename, it is a deliberate one-commit migration, not something M1 does in passing.
+- **Replacing `contract?: string` with `contracts[]` outright.** Rejected: it invalidates every spec
+  file written before M1 with no migration path, for no benefit over keeping the scalar accepted.
+- **Making `given`/`when`/`then` required.** Rejected: it would invalidate the existing golden fixture
+  and force a structure on test cases that plain `description` + `expected` already covers for simple
+  ones.
+- **Storing `position` in frontmatter (as the brief implies).** Rejected — see ADR-003. It puts layout
+  churn into every git diff of a spec file, defeating the Portable Spec Files requirement ADR-002
+  exists to serve.
+
+### Evidence
+
+- `typings/vousoir/src/spec-node-frontmatter.ts:27-38` — the shipped schema: `id`, `title`, `parent`
+  (`z.string().min(1).nullable()`), `status`, `behaviour`, `contract`, `testCases`. No `children`, no
+  `position`.
+- `typings/vousoir/src/spec-node-frontmatter.ts:19-23` — `specNodeTestCaseSchema = z.object({ id:
+  z.string().min(1), description: z.string().min(1), expected: z.string().min(1) });`
+- `typings/vousoir/src/spec-node-frontmatter.ts:35` — `/** The node's contract with its
+  siblings/parent: inputs, outputs, invariants. */` on the single `contract?: string`.
+- `typings/vousoir/src/spec-node-frontmatter.ts:3-5` — *"this schema covers only the structured
+  frontmatter header, not the free-form markdown body below it."*
+- `vousoir-source-of-truth.md:186` — *"Contract verification mechanics per contract type (module API,
+  service API, DB schema)"* — the source of the three `kind` values.
+- `vousoir-source-of-truth.md:67` — *"lets the user define its behavior, its boundary contract, and
+  its test cases — the three things that fully define a module without dictating its internals."*
+- `vousoir/CONTRIBUTING.md:43-47` — *"Every cross-package data shape … is defined in `typings/vousoir`
+  and imported everywhere else. **No package redeclares a shared shape locally.**"*
+- `vousoir/PATCHES.md:288-303` — A3: two packages produced *"the *same type names* `@vousoir/typings`
+  exports, with different shapes"*, and *"dependency-cruiser could not catch this. It tracks
+  *imports*, not *duplicated declarations* … §7.3's 'no package redeclares a shared shape locally' is
+  a review rule, not a mechanical one."*
+- `typings/vousoir/src/index.ts:9-11` — the sealed barrel: anything added must be re-exported here.
+- `vousoir/shared/src/fixtures/spec-node-frontmatter.{valid,invalid}.json` — the golden fixtures that
+  must be extended alongside the schema.
 
 ---
 
@@ -1126,16 +1386,13 @@ five-field manifest is trivial.
 `filenamePattern` that cannot match a bare `.v6r`. Decide and test this in M2, before any `.v6r` file
 exists in a user repo, because changing it afterwards breaks every existing project.
 
-### 4. One `contract` string, or three typed contracts?
+### 4. ~~One `contract` string, or three typed contracts?~~ — resolved by ADR-008
 
-`specNodeFrontmatterSchema` ships `contract: z.string().optional()` — one free-form string. The
-product describes three kinds (`vousoir-source-of-truth.md:186`, *"module API, service API, DB
-schema"*), but frames it as a *verification* question and defers it.
-
-**Proposed:** keep the single string through M4. The type split is only load-bearing for the contract
-linter (Feature 8, deferred). Splitting it now means a schema migration for every existing spec file
-in exchange for a distinction nothing yet consumes. If M3's spec panel wants three labelled text
-areas for authoring ergonomics, do it in the UI over one field first.
+Resolved: add a typed `contracts[]` with `kind: moduleApi | serviceApi | dbSchema` and keep the
+existing scalar `contract` accepted as deprecated back-compat. What remains open is smaller — whether
+`contractSchema`'s body is a single free-form string per contract or something more structured
+(named operations, request/response shapes). **Proposed:** free-form string body for M1; structure it
+only when the contract linter needs to parse it, which is deferred with Feature 8.
 
 ### 5. Should manual node placement be supported, and may auto-layout override it?
 
@@ -1145,9 +1402,9 @@ to work invisibly"*.
 
 **Proposed:** M2 ships pure auto-layout with nothing persisted, and no drag-to-place. Revisit after
 the founder has used a real tree — the answer depends on whether manual placement is actually wanted
-once layout is good. Any eventual answer stores positions in `.v6r/cache/` (`v6r-layout.ts:24`
-reserves a *"layout cache"*), which is derived and gitignored, so no file format is locked by
-deferring.
+once layout is good. Whatever the answer, positions go in `.v6r/cache/` and never in spec frontmatter
+(ADR-003, ADR-008); since `cache` is the one gitignored subdir, deferring locks no file format and
+costs no git churn.
 
 ### 6. Field spelling: `behaviour` vs `behavior`
 
