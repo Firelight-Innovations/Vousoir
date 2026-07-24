@@ -165,7 +165,7 @@ export class DynamicEditorConfigurations extends Disposable implements IWorkbenc
 			properties: {
 				[editorsAssociationsSettingId]: {
 					type: 'object',
-					markdownDescription: localize('editor.editorAssociations', "Configure [glob patterns](https://aka.ms/vscode-glob-patterns) to editors (for example `\"*.hex\": \"hexEditor.hexedit\"`). These have precedence over the default behavior."),
+					markdownDescription: localize('editor.editorAssociations', "Configure glob patterns to editors (for example `\"*.hex\": \"hexEditor.hexedit\"`). These have precedence over the default behavior."),
 					patternProperties: {
 						'.*': {
 							type: 'string',
@@ -186,7 +186,7 @@ export class DynamicEditorConfigurations extends Disposable implements IWorkbenc
 			properties: {
 				[diffEditorsAssociationsSettingId]: {
 					type: 'object',
-					markdownDescription: localize('editor.diffEditorAssociations', "Configure [glob patterns](https://aka.ms/vscode-glob-patterns) to editors for diff views (for example `\"*.md\": \"vscode.markdown.preview.editor\"`). These override `workbench.editorAssociations` for diffs."),
+					markdownDescription: localize('editor.diffEditorAssociations', "Configure glob patterns to editors for diff views (for example `\"*.md\": \"vscode.markdown.preview.editor\"`). These override `workbench.editorAssociations` for diffs."),
 					patternProperties: {
 						'.*': {
 							type: 'string',
