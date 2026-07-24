@@ -21,6 +21,13 @@
     "onStartupFinished"
   ],
   "contributes": {
+    "commands": [
+      {
+        "command": "vousoir.compileWorkOrder",
+        "title": "Compile Work Order...",
+        "category": "Vousoir"
+      }
+    ],
     "viewsContainers": {
       "activitybar": [
         {
