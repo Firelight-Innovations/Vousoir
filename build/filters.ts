@@ -197,6 +197,13 @@ export const copyrightFilter = Object.freeze<string[]>([
 	'!**/*.wasm',
 	'!**/*.tiff',
 	'!**/*.provisionprofile',
+	// Vousoir patch: first-party Vousoir code carries the Vousoir copyright, not
+	// Microsoft's. Asserting Microsoft's copyright over code they did not write
+	// would be false attribution, so these paths are exempt from the upstream
+	// header check. They carry their own header instead.
+	'!extensions/vousoir-*/**',
+	'!typings/vousoir/**',
+	'!vousoir/**',
 	'!build/**/*.init',
 	'!build/darwin/patch-dmg.py',
 	'!build/linux/libcxx-fetcher.*',

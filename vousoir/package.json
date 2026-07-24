@@ -1,0 +1,31 @@
+{
+  "name": "@vousoir/workspace-root",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Private root of the Vousoir pnpm workspace. Not published; holds the shared toolchain and the enforcement scripts (lint, dep-check, typecheck, test) that gate every Vousoir-layer package. code-oss's own npm-driven build at the repo root is separate and untouched.",
+  "type": "module",
+  "engines": {
+    "node": ">=24.18.0",
+    "pnpm": ">=10"
+  },
+  "scripts": {
+    "//lint": "Run from the REPO ROOT with an explicit --config: ESLint 9 flat config refuses to lint files outside its config file's base path, and the Vousoir layer spans typings/, vousoir/, and extensions/. --config also stops ESLint picking up code-oss's own root eslint.config.js (§7.4: upstream lint stays untouched). vousoir/boundary-tests/src is the WP-E fixture-proving harness (§9.9/§9.10); only src/ is listed, never boundary-tests/fixtures/ — that's what keeps its deliberately-broken fixtures out of a normal run.",
+    "lint": "cd .. && eslint --config vousoir/eslint.config.mjs typings/vousoir vousoir/shared vousoir/services extensions/vousoir-core vousoir/boundary-tests/src",
+    "lint:strict": "cd .. && eslint --config vousoir/eslint.config.mjs --max-warnings=0 typings/vousoir vousoir/shared vousoir/services extensions/vousoir-core vousoir/boundary-tests/src",
+    "lint:fix": "cd .. && eslint --config vousoir/eslint.config.mjs --fix typings/vousoir vousoir/shared vousoir/services extensions/vousoir-core vousoir/boundary-tests/src",
+    "//dep-check": "-x excludes vousoir/services/__ci-fixtures__, the WP-E quarantined cross-service-import fixture (§9.9) — it must not fail the normal boundary sweep. vousoir/boundary-tests/src/cross-service-import.test.ts invokes depcruise directly, without this flag, to prove the fixture IS caught when the exclusion is lifted.",
+    "dep-check": "cd .. && depcruise --config .dependency-cruiser.cjs -x \"(^|/)__ci-fixtures__(/|$)\" --output-type err typings/vousoir vousoir/shared vousoir/services extensions/vousoir-core vousoir/boundary-tests/src",
+    "dep-check:graph": "cd .. && depcruise --config .dependency-cruiser.cjs -x \"(^|/)__ci-fixtures__(/|$)\" --output-type dot typings/vousoir vousoir/shared vousoir/services extensions/vousoir-core vousoir/boundary-tests/src",
+    "typecheck": "pnpm -r run typecheck",
+    "test": "pnpm -r run test",
+    "verify": "pnpm run lint:strict && pnpm run dep-check && pnpm run typecheck && pnpm run test"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "eslint": "^9.36.0",
+    "typescript-eslint": "^8.15.0",
+    "dependency-cruiser": "^16.4.0",
+    "vitest": "^2.1.0",
+    "@types/node": "24.x"
+  }
+}

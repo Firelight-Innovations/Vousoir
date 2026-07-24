@@ -1,0 +1,4 @@
+{"runId":"run-002","seq":0,"timestamp":"2026-07-23T10:00:00.000Z","type":"message","role":"narrator","content":"role is not in the enum"}
+{"runId":"run-002","seq":1,"timestamp":"2026-07-23T10:00:01.000Z","type":"tool_call","toolName":"missingToolCallId","input":{}}
+{"runId":"run-002","seq":-1,"timestamp":"2026-07-23T10:00:02.000Z","type":"status","status":"started"}
+{"runId":"run-002","seq":3,"timestamp":"2026-07-23T10:00:03.000Z","type":"paused","detail":"type is not a known event kind"}

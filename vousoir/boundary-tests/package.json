@@ -1,0 +1,19 @@
+{
+  "name": "@vousoir/boundary-tests",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Work order §9.9 / §9.10: intentionally-failing boundary and lint fixtures, plus the tests that prove CI catches them. This package holds only test harness code (src/) and quarantined fixtures (fixtures/) — it has no public surface of its own and nothing may depend on it.",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@vousoir/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "vitest": "^2.1.0",
+    "@types/node": "24.x"
+  }
+}

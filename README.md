@@ -1,78 +1,232 @@
-# Visual Studio Code - Open Source ("Code - OSS")
-[![Feature Requests](https://img.shields.io/github/issues/microsoft/vscode/feature-request.svg)](https://github.com/microsoft/vscode/issues?q=is%3Aopen+is%3Aissue+label%3Afeature-request+sort%3Areactions-%2B1-desc)
-[![Bugs](https://img.shields.io/github/issues/microsoft/vscode/bug.svg)](https://github.com/microsoft/vscode/issues?utf8=✓&q=is%3Aissue+is%3Aopen+label%3Abug)
-[![Gitter](https://img.shields.io/badge/chat-on%20gitter-yellow.svg)](https://gitter.im/Microsoft/vscode)
+# Vousoir
 
-## The Repository
+**An Agentic Development Environment (ADE), built on [code-oss](https://github.com/microsoft/vscode).**
 
-This repository ("`Code - OSS`") is where we (Microsoft) develop the [Visual Studio Code](https://code.visualstudio.com) product together with the community. Not only do we work on code and issues here, but we also publish our [roadmap](https://github.com/microsoft/vscode/wiki/Roadmap), [monthly iteration plans](https://github.com/microsoft/vscode/wiki/Iteration-Plans), and our [endgame plans](https://github.com/microsoft/vscode/wiki/Running-the-Endgame). This source code is available to everyone under the standard [MIT license](https://github.com/microsoft/vscode/blob/main/LICENSE.txt).
+Vousoir is a full editor — everything VS Code does — plus a layer for working *with* agents rather
+than merely alongside them: a per-repo project-data folder (`.v6r/`) holding specs, whiteboards, and
+committed agent traces, and a supervised service host for long-running local services.
 
-## Visual Studio Code
+> **Status: v1 shell.** The shell is complete and runs. The canvas, spec tree, and agent runtime are
+> future work orders. What ships today is the rebranded editor, the `vousoir-core` extension with a
+> placeholder panel, a working service host, and the enforcement tooling that keeps the layer clean.
 
-<p align="center">
-  <img alt="VS Code in action" src="https://github.com/user-attachments/assets/56af271c-949d-454c-a3ea-16188c063414">
-</p>
+---
 
-[Visual Studio Code](https://code.visualstudio.com) is a distribution of the `Code - OSS` repository with Microsoft-specific customizations released under a traditional [Microsoft product license](https://code.visualstudio.com/License/).
+## Quick start
 
-[Visual Studio Code](https://code.visualstudio.com) combines the simplicity of a code editor with what developers need for their core edit-build-debug cycle. It provides comprehensive code editing, navigation, and understanding support along with lightweight debugging, a rich extensibility model, and lightweight integration with existing tools.
+```powershell
+git clone https://github.com/Firelight-Innovations/Vousoir.git
+cd Vousoir
+.\setup.ps1
+.\scripts\code.bat
+```
 
-Visual Studio Code is updated monthly with new features and bug fixes. You can download it for Windows, macOS, and Linux on [Visual Studio Code's website](https://code.visualstudio.com/Download). To get the latest releases every day, install the [Insiders build](https://code.visualstudio.com/insiders).
+`setup.ps1` verifies your toolchain, installs both dependency layers, compiles everything, and runs
+the verification suite. It is safe to re-run and skips work already done.
 
-## Contributing
+**Windows is the primary target.** macOS and Linux build (code-oss is cross-platform) but only the
+Windows path is exercised end to end.
 
-There are many ways in which you can participate in this project, for example:
+### Prerequisites
 
-* [Submit bugs and feature requests](https://github.com/microsoft/vscode/issues), and help us verify as they are checked in
-* Review [source code changes](https://github.com/microsoft/vscode/pulls)
-* Review the [documentation](https://github.com/microsoft/vscode-docs) and make pull requests for anything from typos to new content.
+`setup.ps1` checks all of these and tells you exactly what to run if one is missing.
 
-If you are interested in fixing issues and contributing directly to the code base,
-please see the document [How to Contribute](https://github.com/microsoft/vscode/wiki/How-to-Contribute), which covers the following:
+| Tool | Version | Notes |
+|---|---|---|
+| **Node.js** | **24.18.0+** (24.x only) | `winget install --id OpenJS.NodeJS.LTS -v 24.18.0` — must be the **LTS** package |
+| pnpm | 10+ | `npm install -g pnpm` |
+| Python | 3.12–3.13 | plus `setuptools` (3.12 removed `distutils`) |
+| **VS Build Tools 2022** | Desktop development with **C++** | native modules compile from source |
+| **Spectre-mitigated libraries** | VS component | separate from the C++ workload — see [BUILDING.md](BUILDING.md) |
 
-* [How to build and run from source](https://github.com/microsoft/vscode/wiki/How-to-Contribute)
-* [The development workflow, including debugging and running tests](https://github.com/microsoft/vscode/wiki/How-to-Contribute#debugging)
-* [Coding guidelines](https://github.com/microsoft/vscode/wiki/Coding-Guidelines)
-* [Submitting pull requests](https://github.com/microsoft/vscode/wiki/How-to-Contribute#pull-requests)
-* [Finding an issue to work on](https://github.com/microsoft/vscode/wiki/How-to-Contribute#where-to-contribute)
-* [Contributing to translations](https://aka.ms/vscodeloc)
+> Node 24 is the **LTS** line. `winget install --id OpenJS.NodeJS -v 24.18.0` fails — that feed tops
+> out at 24.10.0.
 
-## Feedback
+---
 
-* Ask a question on [Stack Overflow](https://stackoverflow.com/questions/tagged/vscode)
-* [Request a new feature](CONTRIBUTING.md)
-* Upvote [popular feature requests](https://github.com/microsoft/vscode/issues?q=is%3Aopen+is%3Aissue+label%3Afeature-request+sort%3Areactions-%2B1-desc)
-* [File an issue](https://github.com/microsoft/vscode/issues)
-* Connect with the extension author community on [GitHub Discussions](https://github.com/microsoft/vscode-discussions/discussions) or [Slack](https://aka.ms/vscode-dev-community)
-* Follow [@code](https://x.com/code) and let us know what you think!
+## Daily development
 
-See our [wiki](https://github.com/microsoft/vscode/wiki/Feedback-Channels) for a description of each of these channels and information on some other available community-driven channels.
+```powershell
+npm run watch              # incremental rebuild on save (leave running)
+.\scripts\code.bat         # launch Vousoir
 
-## Related Projects
+cd vousoir
+pnpm run verify            # lint + boundaries + types + tests — run before every commit
+```
 
-Many of the core components and extensions to VS Code live in their own repositories on GitHub. For example, the [node debug adapter](https://github.com/microsoft/vscode-node-debug) and the [mono debug adapter](https://github.com/microsoft/vscode-mono-debug) repositories are separate from each other. For a complete list, please visit the [Related Projects](https://github.com/microsoft/vscode/wiki/Related-Projects) page on our [wiki](https://github.com/microsoft/vscode/wiki).
+`npm run watch` covers the code-oss layer and built-in extensions. For the Vousoir layer:
 
-## Bundled Extensions
+```powershell
+cd vousoir
+pnpm --filter @vousoir/shared run test -- --watch
+node extensions/vousoir-core/esbuild.mts --watch     # from the repo root
+```
 
-VS Code includes a set of built-in extensions located in the [extensions](extensions) folder, including grammars and snippets for many languages. Extensions that provide rich language support (inline suggestions, Go to Definition) for a language have the suffix `language-features`. For example, the `json` extension provides coloring for `JSON` and the `json-language-features` extension provides rich language support for `JSON`.
+### `pnpm run verify` is the gate
 
-## Development Container
+It runs, in order: `lint:strict` (warnings fail too) → `dep-check` (architectural boundaries) →
+`typecheck` (strict TS) → `test`. CI runs exactly this. **Passing it is part of "done", not cleanup
+for later.**
 
-This repository includes a Visual Studio Code Dev Containers / GitHub Codespaces development container.
+---
 
-* For [Dev Containers](https://aka.ms/vscode-remote/download/containers), use the **Dev Containers: Clone Repository in Container Volume...** command which creates a Docker volume for better disk I/O on macOS and Windows.
-  * If you already have VS Code and Docker installed, you can also click [here](https://vscode.dev/redirect?url=vscode://ms-vscode-remote.remote-containers/cloneInVolume?url=https://github.com/microsoft/vscode) to get started. This will cause VS Code to automatically install the Dev Containers extension if needed, clone the source code into a container volume, and spin up a dev container for use.
+## Repository layout
 
-* For Codespaces, install the [GitHub Codespaces](https://marketplace.visualstudio.com/items?itemName=GitHub.codespaces) extension in VS Code, and use the **Codespaces: Create New Codespace** command.
+```
+Vousoir/
+├─ src/                     code-oss core            (upstream — patch sparingly)
+├─ extensions/
+│  ├─ vousoir-core/         the Vousoir extension    ← our code
+│  └─ …                     ~97 built-in extensions  (upstream)
+├─ typings/vousoir/         @vousoir/typings — zod schemas + shared types
+├─ vousoir/                 the Vousoir layer (isolated pnpm workspace)
+│  ├─ shared/               @vousoir/shared — .v6r scaffolding, helpers
+│  ├─ services/
+│  │  ├─ service-host/      supervises spawned services
+│  │  └─ dummy-service/     reference service implementation
+│  ├─ boundary-tests/       proves the enforcement walls actually fire
+│  ├─ PATCHES.md            core-patch ledger — read before editing src/
+│  ├─ HANDOFF.md            current state, traps, open items
+│  └─ CONTRIBUTING.md       layer conventions
+├─ setup.ps1                one-command dev setup
+├─ build.ps1                one-command distributable build
+└─ BUILDING.md              toolchain detail + troubleshooting
+```
 
-Docker / the Codespace should have at least **4 cores and 6 GB of RAM (8 GB recommended)** to run a full build. See the [development container README](.devcontainer/README.md) for more information.
+### Two toolchains, deliberately
 
-## Code of Conduct
+- **npm** owns the repo root, exactly as upstream does (enforced by `build/npm/preinstall.ts`).
+- **pnpm** owns the Vousoir layer from an isolated root at `vousoir/`.
 
-This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/). For more information see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/) or contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additional questions or comments.
+They never share a `node_modules`. A root-level `pnpm-workspace.yaml` makes pnpm adopt
+`code-oss-dev` and collide with npm — verified empirically. Don't move it. See `vousoir/PATCHES.md`
+deviation D1.
+
+---
+
+## Architecture
+
+### Services are spawned processes, not libraries
+
+`vousoir-core` **spawns** `service-host` and speaks newline-delimited JSON over stdio. It never
+imports it. `service-host` in turn supervises each service listed by a `vousoir.service.json`
+manifest and terminates the whole tree when the app exits.
+
+```
+Vousoir.exe (extension host)
+└── service-host/src/main.ts
+    └── dummy-service/src/index.ts
+```
+
+Two details that are easy to get wrong and hard to debug:
+
+- **`ELECTRON_RUN_AS_NODE=1` is mandatory** on every spawned process. Inside the extension host,
+  `process.execPath` is the *Electron binary* — spawning it without this launches a whole Electron
+  instance. Unit tests run under plain Node and cannot catch this.
+- **Services run raw `.ts`.** Electron 42.6's bundled Node strips TypeScript types, so service entry
+  points need no build step. Verified in-app.
+
+### The wire protocol has exactly one source
+
+Both sides import `serviceHostRequestSchema` / `serviceHostResponseSchema` from `@vousoir/typings`.
+Never redeclare a protocol type locally — two packages once declared incompatible types under the
+same names, and dependency-cruiser **cannot** catch that (it tracks imports, not declarations).
+
+### Two independent enforcement walls
+
+1. **Node `exports` sealing** — deep imports fail at runtime with `ERR_PACKAGE_PATH_NOT_EXPORTED`.
+   Anything a sibling needs must be re-exported from the package barrel.
+2. **dependency-cruiser** — 8 rules, all `error`: no cross-service imports, extensions may only reach
+   typings and shared, the Vousoir layer must not import core, core must not import Vousoir, etc.
+
+`vousoir/boundary-tests/` proves both fire, asserting on *specific* rule names rather than "something
+failed". If a rule blocks you, the design is telling you something — **don't edit
+`.dependency-cruiser.cjs` or the ESLint ignores to get around it.**
+
+### The `.v6r/` folder
+
+Every repo opened with Vousoir gets a `.v6r/` at its root, so a collaborator who clones sees the full
+project state with no external database:
+
+```
+.v6r/
+├─ spec/          module tree, one Markdown node per file   [committed]
+├─ whiteboards/   frontend/UX canvases                      [committed]
+├─ traces/        one JSONL file per agent run              [committed]
+├─ docs/          Vousoir-maintained module docs            [committed]
+└─ cache/         SQLite index — derived, regenerable       [gitignored]
+```
+
+Traces are committed, portable JSONL — readable in any editor, diffable in git. `cache/` is only an
+index rebuilt from them. Scaffold with `v6rInit()` from `@vousoir/shared`.
+
+---
+
+## Building a distributable
+
+```powershell
+.\build.ps1                      # minified, x64
+.\build.ps1 -Arch arm64          # arm64
+.\build.ps1 -NoMinify -Archive   # fast build + .zip
+```
+
+Output lands next to the repo at `..\VSCode-win32-x64\Vousoir.exe` (the folder name comes from
+upstream's packaging task; the executable is rebranded). Expect 20–45 minutes — minification
+dominates.
+
+Builds are **unsigned**; signed installers are out of scope for v1. SmartScreen will warn on first
+run on another machine.
+
+---
+
+## Patching upstream code
+
+Vousoir tracks code-oss at tag **`1.130.0`**. Every edit to a file outside `extensions/vousoir-*` and
+`vousoir/` is a **core patch** and must be logged in [`vousoir/PATCHES.md`](vousoir/PATCHES.md) with
+the file, the change, the reason, and whether it will conflict on an upstream merge.
+
+**Budget: ≤ 15 core patches. Currently 8.** If it can be done via `product.json`, an extension, or
+configuration instead — do that. Adding new files is not a core patch; they cannot conflict.
+
+Rebranding lives entirely in `product.json` (the sanctioned customization point) plus replaced icon
+binaries. Telemetry endpoints and Microsoft-account services are removed; the extension gallery
+points at [Open VSX](https://open-vsx.org).
+
+```powershell
+git remote -v
+# origin    https://github.com/Firelight-Innovations/Vousoir.git
+# upstream  https://github.com/microsoft/vscode.git
+```
+
+Full upstream history is preserved, so `git merge <upstream-tag>` works.
+
+---
+
+## Troubleshooting
+
+Most problems are Windows toolchain issues, not Vousoir. [BUILDING.md](BUILDING.md) documents each
+one with its exact error text. The greatest hits:
+
+| Symptom | Cause |
+|---|---|
+| `'C:\Program' is not recognized` during `npm ci` | `node-gyp-build@4.8.1` spawns with `shell:true` + an unquoted `process.execPath`. `setup.ps1` fixes this with a space-free Node junction. |
+| `error MSB8040: Spectre-mitigated libraries are required` | Separate VS component, not in the C++ workload. |
+| `npm error code ECONNRESET` | Transient registry failure. `postinstall` is resumable — just re-run `setup.ps1`. |
+| `EBUSY: resource busy or locked` | Vousoir or VS Code is running and holding `node_modules`. Close it. |
+| `Please use Node.js v24.18.0 or newer` | Wrong Node. Note it fails *late* — npm builds native modules before root lifecycle scripts. |
+| `ERR_PACKAGE_PATH_NOT_EXPORTED` | Working as designed. You deep-imported a package's internals; import the barrel. |
+
+> ⚠️ **Never run `git clean -xfd`** while any part of the Vousoir layer is untracked — `-x` removes
+> untracked files and would delete it. To reset a bad install, remove only `node_modules`, or run
+> `.\setup.ps1 -Clean`.
+
+---
 
 ## License
 
-Copyright (c) Microsoft Corporation. All rights reserved.
+Vousoir is [MIT licensed](LICENSE.txt), as is the code-oss source it derives from. Microsoft remains
+the original copyright holder of the upstream code; that attribution stays in `LICENSE.txt` and is
+correct, not an oversight.
 
-Licensed under the [MIT](LICENSE.txt) license.
+Vousoir is **not** affiliated with, endorsed by, or supported by Microsoft. It does not use the
+Visual Studio Code name, logo, or Marketplace.

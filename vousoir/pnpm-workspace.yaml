@@ -1,0 +1,27 @@
+# Vousoir pnpm workspace.
+#
+# DEVIATION from work order §5 (documented in vousoir/PATCHES.md): this manifest lives
+# at ./vousoir/ rather than the repo root. At tag 1.130.0 the code-oss repo root is
+# itself a package with both a package-lock.json and a pnpm-lock.yaml; a root-level
+# pnpm-workspace.yaml makes pnpm adopt code-oss's root package and share its node_modules,
+# which collides with code-oss's own npm-driven install. Rooting the Vousoir workspace one
+# level down gives it an isolated node_modules and leaves code-oss's toolchain untouched
+# (work order §4.5 / §7.4). The `../` globs still reach the spec-mandated repo-root
+# `typings/` folder and the `extensions/vousoir-*` built-in extensions.
+packages:
+  - 'shared'
+  - 'services/*'
+  # work order §9.9: the quarantined cross-service-import CI fixture lives under services/ (it
+  # must, to match .dependency-cruiser.cjs's path-regex rule) but must never become a real
+  # workspace package — see vousoir/boundary-tests/src/cross-service-import.test.ts.
+  - '!services/__ci-fixtures__'
+  # work order §9.9/§9.10: harness that proves the boundary/lint fixtures are actually caught.
+  - 'boundary-tests'
+  - '../typings/*'
+  - '../extensions/vousoir-*'
+
+# pnpm 10 blocks dependency build scripts by default. esbuild (a vitest dependency)
+# needs its postinstall to place its platform binary, so allow it explicitly rather
+# than relying on the interactive `pnpm approve-builds` prompt — CI must be deterministic.
+onlyBuiltDependencies:
+  - esbuild

@@ -89,8 +89,14 @@ export function hygiene(some: NodeJS.ReadWriteStream | string[] | undefined, run
 	const productJson = es.through(function (file: VinylFile) {
 		const product = JSON.parse(file.contents!.toString('utf8'));
 
-		if (product.extensionsGallery) {
-			console.error(`product.json: Contains 'extensionsGallery'`);
+		// Vousoir patch: upstream forbids `extensionsGallery` because the Microsoft
+		// Marketplace is not licensed for the OSS build. Vousoir is a fork that must
+		// ship a gallery (work order §4.3) and points at Open VSX, which is licensed
+		// for exactly this use. Keep the check for any *other* gallery so an
+		// accidental repoint at the Microsoft Marketplace still fails hygiene.
+		const galleryServiceUrl = product.extensionsGallery?.serviceUrl;
+		if (galleryServiceUrl && !/^https:\/\/open-vsx\.org\//.test(galleryServiceUrl)) {
+			console.error(`product.json: 'extensionsGallery.serviceUrl' must point at Open VSX (got: ${galleryServiceUrl})`);
 			errorCount++;
 		}
 

@@ -1,0 +1,26 @@
+{
+  "name": "@vousoir/service-host",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Supervisor process that spawns, health-checks, and disposes Vousoir services declared via the service manifest format. The one alone permitted to import service manifests; services never import each other.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "start": "node src/main.ts"
+  },
+  "dependencies": {
+    "@vousoir/typings": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "vitest": "^2.1.0",
+    "@types/node": "24.x"
+  }
+}

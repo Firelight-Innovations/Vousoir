@@ -1,0 +1,5 @@
+[
+	{ "id": "", "title": "Empty id fails min(1)", "parent": null, "status": "specified" },
+	{ "id": "bad-status", "title": "Status value not in the enum", "parent": "root", "status": "in_progress" },
+	{ "title": "Missing required id field", "parent": "root", "status": "unspecified" }
+]

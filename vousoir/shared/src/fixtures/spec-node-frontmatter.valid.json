@@ -1,0 +1,32 @@
+[
+	{
+		"id": "root",
+		"title": "Vousoir",
+		"parent": null,
+		"status": "specified",
+		"behaviour": "The root module of the product.",
+		"contract": "Owns nothing directly; children own their own contracts.",
+		"testCases": []
+	},
+	{
+		"id": "v6r-scaffold",
+		"title": ".v6r scaffold",
+		"parent": "root",
+		"status": "verified",
+		"behaviour": "Creates a well-formed .v6r/ folder in a target repo.",
+		"contract": "v6rInit(repoRoot) creates spec/, whiteboards/, traces/, docs/, cache/, and .gitignore.",
+		"testCases": [
+			{
+				"id": "tc-1",
+				"description": "creates exactly the §8 layout",
+				"expected": "readdir(.v6r) matches the five subdirs plus .gitignore"
+			}
+		]
+	},
+	{
+		"id": "unstarted-node",
+		"title": "Some future module",
+		"parent": "root",
+		"status": "unspecified"
+	}
+]

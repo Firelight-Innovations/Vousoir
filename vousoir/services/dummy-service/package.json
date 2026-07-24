@@ -1,0 +1,23 @@
+{
+  "name": "@vousoir/dummy-service",
+  "version": "0.0.0",
+  "private": true,
+  "description": "A trivial service registered through the service manifest, proving the service-host spawn/monitor/dispose lifecycle end to end before any real service exists (work order §6.2).",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@vousoir/typings": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "@types/node": "24.x"
+  }
+}

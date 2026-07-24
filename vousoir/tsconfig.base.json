@@ -1,0 +1,37 @@
+{
+  "//": "Shared strict TypeScript config for the Vousoir layer (typings/, vousoir/, extensions/vousoir-*). Work order §7.2: strict, noUncheckedIndexedAccess, no implicit any. Inherited code-oss core keeps its own upstream tsconfig — this file governs the Vousoir layer only.",
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ES2022"],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "exactOptionalPropertyTypes": true,
+    "forceConsistentCasingInFileNames": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+
+    // Every Vousoir package is currently consumed as TypeScript SOURCE: its `exports` field maps
+    // to ./src/index.ts and it compiles with noEmit. Explicit .ts specifiers are therefore the
+    // honest, unambiguous form. If a package later emits real JS, it must drop this and switch its
+    // relative imports to .js (the NodeNext idiom) — the flag is only legal alongside noEmit.
+    "allowImportingTsExtensions": true,
+
+    // Default to NO ambient @types. TypeScript otherwise walks node_modules/@types all the
+    // way up the filesystem and silently absorbs unrelated global type packages (this machine
+    // has a stray C:/Users/<user>/node_modules/@types containing electron, fs-extra, ...).
+    // Packages needing ambient types opt in explicitly, e.g. "types": ["node"].
+    "types": []
+  }
+}

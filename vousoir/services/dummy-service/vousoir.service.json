@@ -1,0 +1,6 @@
+{
+  "manifestVersion": 1,
+  "name": "dummy-service",
+  "displayName": "Dummy Service",
+  "entryPoint": "src/index.ts"
+}

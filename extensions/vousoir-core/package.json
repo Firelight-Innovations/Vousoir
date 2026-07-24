@@ -1,0 +1,56 @@
+{
+  "name": "vousoir-core",
+  "displayName": "Vousoir",
+  "description": "Vousoir's built-in extension: the single code-oss-facing entry point for Vousoir functionality. Registers the Vousoir activity-bar panel and owns the service-host lifecycle.",
+  "version": "0.0.0",
+  "publisher": "vousoir",
+  "license": "MIT",
+  "private": true,
+  "engines": {
+    "vscode": "^1.130.0"
+  },
+  "type": "module",
+  "main": "./dist/extension.js",
+  "exports": {
+    ".": {
+      "types": "./src/extension.ts",
+      "default": "./dist/extension.js"
+    }
+  },
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "vousoir",
+          "title": "Vousoir",
+          "icon": "media/vousoir-icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "vousoir": [
+        {
+          "id": "vousoir.panel",
+          "name": "Vousoir",
+          "type": "webview"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "compile": "node esbuild.mts",
+    "watch": "node esbuild.mts --watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@vousoir/typings": "workspace:*",
+    "@vousoir/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "@types/node": "24.x"
+  }
+}

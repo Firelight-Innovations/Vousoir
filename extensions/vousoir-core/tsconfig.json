@@ -1,0 +1,14 @@
+{
+	"//": "Extends the Vousoir strict base (work order §7.2 scope explicitly covers extensions/vousoir-*), while pulling the vscode API types the way every code-oss built-in extension does — by including src/vscode-dts/vscode.d.ts rather than depending on @types/vscode (which is not published past 1.125.0). That include is an ambient TYPE reference, not a runtime import of core, so it does not breach §7.1.",
+	"extends": "../../vousoir/tsconfig.base.json",
+	"compilerOptions": {
+		"rootDir": "./src",
+		"outDir": "./dist",
+		"types": ["node"],
+		"noEmit": true
+	},
+	"include": [
+		"src/**/*.ts",
+		"../../src/vscode-dts/vscode.d.ts"
+	]
+}

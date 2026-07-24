@@ -143,6 +143,20 @@ export default defineConfig(
 			]
 		},
 	},
+	// Vousoir patch: first-party Vousoir code carries the Vousoir copyright, not
+	// Microsoft's. Flat config is last-match-wins, so this override disables the
+	// upstream header rule for our paths only; everything under src/ and the
+	// upstream extensions still requires the Microsoft header.
+	{
+		files: [
+			'extensions/vousoir-*/**/*.{ts,tsx,mts,cts,js,mjs,cjs}',
+			'typings/vousoir/**/*.{ts,mts,cts}',
+			'vousoir/**/*.{ts,tsx,mts,cts,js,mjs,cjs}'
+		],
+		rules: {
+			'header/header': 'off'
+		}
+	},
 	// TS
 	{
 		files: [
