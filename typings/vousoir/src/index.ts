@@ -37,3 +37,7 @@ export * from './work-order.ts';
 // Dispatching a work order to a coding agent, and the transient status of one run
 // (source-of-truth Feature 5, ADR-005).
 export * from './dispatch.ts';
+
+// The nine MCP tool payloads the standalone spec server exposes (ADR-006). Schemas only —
+// the SDK itself may never be imported into typings (`typings-only-imports-zod`).
+export * from './mcp-spec-tools.ts';

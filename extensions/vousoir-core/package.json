@@ -31,6 +31,11 @@
         "command": "vousoir.buildWithClaudeCode",
         "title": "Build with Claude Code...",
         "category": "Vousoir"
+      },
+      {
+        "command": "vousoir.showMcpRegistration",
+        "title": "Show MCP Registration Command...",
+        "category": "Vousoir"
       }
     ],
     "viewsContainers": {

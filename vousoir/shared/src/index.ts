@@ -29,6 +29,14 @@ export type { SpecNodePaths } from './spec-store/spec-paths.ts';
 // The work-order compiler (source-of-truth Feature 4). `compileWorkOrder` is pure; writing
 // is a separate step so the user can review before anything reaches disk.
 export { compileWorkOrder } from './work-order/compile-work-order.ts';
+export { collectWorkOrderContext } from './work-order/work-order-context.ts';
+export type { WorkOrderContext } from './work-order/work-order-context.ts';
+
+// The work-order fixture and its golden file are a CROSS-PACKAGE contract, not a private
+// test detail: M6's MCP server must compile byte-identically to the editor command, and
+// the only way to assert that is for both to test against the same golden. A copy in each
+// package would drift, which is precisely the failure the assertion exists to catch.
+export { WORK_ORDER_GOLDEN_PATH, WORK_ORDER_TREE_DIR } from './fixtures/work-order-tree-fixture.ts';
 export { workOrderSlug } from './work-order/work-order-slug.ts';
 export { writeWorkOrder, workOrdersDir } from './work-order/write-work-order.ts';
 
