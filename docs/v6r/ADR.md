@@ -1520,7 +1520,21 @@ specs)."* It gated M4 and is the single decision that most affects whether gener
 |---|---|---|
 | The node itself | Its **full spec** — `behaviour`, every contract, every test case, and the markdown body. | — |
 | Its ancestors (full chain to the root) | **Behaviour summaries only.** | Their contracts, test cases, and bodies. |
-| Its directly-contracted neighbours | **Contract blocks only.** | Behaviour, test cases, body — **never neighbour internals.** |
+| Its **parent, siblings and children** | **Contract blocks only.** | Behaviour, test cases, body — **never neighbour internals.** |
+
+> **Tier 3 is the shipped approximation, not the ruling.** The ruling said *"directly-contracted
+> neighbours"*; that set is **not computable** — contracts carry no target reference (open question
+> 10). M4 ships the structural stand-in **parent + siblings + children**, declared as such in code
+> (`vousoir/shared/src/work-order/work-order-context.ts` — `WorkOrderNeighbourRelation = 'parent' |
+> 'sibling' | 'child'`). Resolving #10 is what would make this tier exact.
+>
+> **Children are the tier that matters most, and an early reading nearly lost them.** A node's
+> children are precisely the modules it composes and is therefore most likely to call. A stand-in
+> built from siblings alone — a natural reading of "neighbours" — would have omitted the single most
+> relevant group. Recorded so this is not re-litigated.
+>
+> The **parent appears in two tiers on purpose**: as an ancestor it contributes a behaviour summary,
+> as a neighbour it contributes contract blocks. Different data, no duplication.
 
 **Rationale, in the user's terms:** *"contracts, not substance" applies to the work order itself.* The
 same principle the product applies to modules applies to what an agent is handed — an implementer gets
