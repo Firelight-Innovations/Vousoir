@@ -19,7 +19,6 @@ import { Disposable } from '../../../base/common/lifecycle.js';
 import { SyncDescriptor } from '../../../platform/instantiation/common/descriptors.js';
 import { MarkdownString } from '../../../base/common/htmlContent.js';
 import product from '../../../platform/product/common/product.js';
-import { isProposedApiEnabled } from '../../services/extensions/common/extensions.js';
 
 const jsonRegistry = Registry.as<IJSONContributionRegistry>(JSONExtensions.JSONContribution);
 const configurationRegistry = Registry.as<IConfigurationRegistry>(Extensions.Configuration);
@@ -322,10 +321,6 @@ configurationExtPoint.setHandler((extensions, { added, removed }) => {
 					propertyConfiguration.experiment = {
 						mode: 'startup'
 					};
-				}
-				if (propertyConfiguration.agentsWindow && !isProposedApiEnabled(extension.description, 'agentsWindowConfiguration')) {
-					extension.collector.error(nls.localize('config.property.agentsWindow.proposed', "Extension '{0}' CANNOT use 'agentsWindow' property on configuration '{1}' without enabling the 'agentsWindowConfiguration' API proposal.", extension.description.identifier.value, key));
-					delete propertyConfiguration.agentsWindow;
 				}
 				seenProperties.add(key);
 				propertyConfiguration.scope = propertyConfiguration.scope ? parseScope(propertyConfiguration.scope.toString()) : ConfigurationScope.WINDOW;

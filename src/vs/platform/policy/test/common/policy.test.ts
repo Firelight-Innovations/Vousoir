@@ -18,13 +18,12 @@ suite('AbstractPolicyService', () => {
 
 	ensureNoDisposablesAreLeakedInTestSuite();
 
-	test('serialize() omits the non-cloneable value callback so policiesData can be sent over IPC', async () => {
+	test('serialize() produces a structured-clone-safe copy so policiesData can be sent over IPC', async () => {
 		const service = new TestPolicyService();
 
 		await service.updatePolicyDefinitions({
-			'WithCallback': {
+			'WithRestrictedValue': {
 				type: 'boolean',
-				value: (policyData) => policyData.chat_preview_features_enabled === false ? false : undefined,
 				restrictedValue: false,
 			},
 			'PlainDefinition': {
@@ -34,11 +33,9 @@ suite('AbstractPolicyService', () => {
 
 		const serialized = service.serialize();
 
-		// The callback must not survive serialization...
-		assert.strictEqual(typeof serialized['WithCallback'].definition.value, 'undefined');
-		// ...while the structured-clone-safe metadata is preserved.
-		assert.strictEqual(serialized['WithCallback'].definition.type, 'boolean');
-		assert.strictEqual(serialized['WithCallback'].definition.restrictedValue, false);
+		// The structured-clone-safe metadata is preserved.
+		assert.strictEqual(serialized['WithRestrictedValue'].definition.type, 'boolean');
+		assert.strictEqual(serialized['WithRestrictedValue'].definition.restrictedValue, false);
 		assert.strictEqual(serialized['PlainDefinition'].definition.type, 'string');
 
 		// The whole payload must be structured-clone-safe (this is how it is delivered to the

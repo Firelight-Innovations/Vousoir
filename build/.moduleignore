@@ -255,18 +255,6 @@ zone.js/dist/**
 @vscode/os-proxy-resolver-win32-arm64-msvc/**
 @vscode/os-proxy-resolver-win32-x64-msvc/**
 
-# @github/copilot-sdk - strip the nested @github/copilot CLI runtime
-# The SDK only needs its own dist/ files; the CLI is resolved via cliPath at runtime
-@github/copilot-sdk/node_modules/@github/copilot/**
-@github/copilot-sdk/node_modules/@github/copilot-darwin-arm64/**
-@github/copilot-sdk/node_modules/@github/copilot-darwin-x64/**
-@github/copilot-sdk/node_modules/@github/copilot-linux-arm64/**
-@github/copilot-sdk/node_modules/@github/copilot-linux-x64/**
-@github/copilot-sdk/node_modules/@github/copilot-linuxmusl-arm64/**
-@github/copilot-sdk/node_modules/@github/copilot-linuxmusl-x64/**
-@github/copilot-sdk/node_modules/@github/copilot-win32-arm64/**
-@github/copilot-sdk/node_modules/@github/copilot-win32-x64/**
-
 # es5-ext is quarantined protestware (sonatype-2022-2248). It is only consumed
 # in websocket's browser.js inside a try/catch with a globalThis fallback,
 # so it is unnecessary in the browsers/runtimes VS Code supports.

@@ -241,19 +241,6 @@ export class LocalStorageSecretStorageProvider implements ISecretStorageProvider
 		// Settings Sync Entry
 		record[`${product.urlProtocol}.loginAccount`] = JSON.stringify(authSessionInfo);
 
-		// Auth extension Entry
-		if (authSessionInfo.providerId !== 'github') {
-			console.error(`Unexpected auth provider: ${authSessionInfo.providerId}. Expected 'github'.`);
-			return record;
-		}
-
-		const authAccount = JSON.stringify({ extensionId: 'vscode.github-authentication', key: 'github.auth' });
-		record[authAccount] = JSON.stringify(authSessionInfo.scopes.map(scopes => ({
-			id: authSessionInfo.id,
-			scopes,
-			accessToken: authSessionInfo.accessToken
-		})));
-
 		return record;
 	}
 
@@ -328,16 +315,11 @@ class LocalStorageURLCallbackProvider extends Disposable implements IURLCallback
 			}
 		}
 
-		// TODO@joao remove eventually
-		// https://github.com/microsoft/vscode-dev/issues/62
-		// https://github.com/microsoft/vscode/blob/159479eb5ae451a66b5dac3c12d564f32f454796/extensions/github-authentication/src/githubServer.ts#L50-L50
-		if (!(options.authority === 'vscode.github-authentication' && options.path === '/dummy')) {
-			const key = `vscode-web.url-callbacks[${id}]`;
-			localStorage.removeItem(key);
+		const key = `vscode-web.url-callbacks[${id}]`;
+		localStorage.removeItem(key);
 
-			this.pendingCallbacks.add(id);
-			this.startListening();
-		}
+		this.pendingCallbacks.add(id);
+		this.startListening();
 
 		return URI.parse(mainWindow.location.href).with({ path: this._callbackRoute, query: queryParams.join('&') });
 	}

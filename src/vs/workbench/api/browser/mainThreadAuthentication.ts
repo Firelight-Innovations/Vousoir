@@ -28,11 +28,7 @@ import { fetchAuthorizationServerMetadata, IAuthorizationTokenResponse } from '.
 import { IDynamicAuthenticationProviderStorageService } from '../../services/authentication/common/dynamicAuthenticationProviderStorage.js';
 import { IClipboardService } from '../../../platform/clipboard/common/clipboardService.js';
 import { IQuickInputService } from '../../../platform/quickinput/common/quickInput.js';
-import { ISecretStorageService } from '../../../platform/secrets/common/secrets.js';
-import { mcpOAuthClientSecretStorageKey } from '../../contrib/mcp/common/mcpTypes.js';
 import { IProductService } from '../../../platform/product/common/productService.js';
-import { IConfigurationService } from '../../../platform/configuration/common/configuration.js';
-import { IMcpEnterpriseManagedAuthIdpConfig, mcpEnterpriseManagedAuthIdpSection } from '../../contrib/mcp/common/mcpConfiguration.js';
 
 export interface AuthenticationInteractiveOptions {
 	detail?: string;
@@ -135,8 +131,6 @@ export class MainThreadAuthentication extends Disposable implements MainThreadAu
 		@IDynamicAuthenticationProviderStorageService private readonly dynamicAuthProviderStorageService: IDynamicAuthenticationProviderStorageService,
 		@IClipboardService private readonly clipboardService: IClipboardService,
 		@IQuickInputService private readonly quickInputService: IQuickInputService,
-		@IConfigurationService private readonly configurationService: IConfigurationService,
-		@ISecretStorageService private readonly secretStorageService: ISecretStorageService,
 	) {
 		super();
 		this._proxy = extHostContext.getProxy(ExtHostContext.ExtHostAuthentication);
@@ -185,24 +179,9 @@ export class MainThreadAuthentication extends Disposable implements MainThreadAu
 				);
 			},
 			createXaa: async (issuer) => {
-				// XAA providers are keyed by issuer alone so they can be reused across many enterprise-managed servers.
-				const authProviderId = `xaa:${issuer.toString(true)}`;
 				const { metadata: serverMetadata } = await fetchAuthorizationServerMetadata(issuer.toString(true));
 
-				// Prefer the user-configured IdP client_id / client_secret over any cached registration.
-				// XAA requires a pre-provisioned (admin-approved) client_id at the IdP — there is no DCR
-				// fallback — so an explicit setting is the most reliable source. Typically delivered via
-				// enterprise policy; developers may hand-edit settings.json for local testing.
-				const configuredIdp = this.configurationService.getValue<IMcpEnterpriseManagedAuthIdpConfig | undefined>(mcpEnterpriseManagedAuthIdpSection) ?? {};
-				const configuredClientId = configuredIdp.clientId?.trim() || undefined;
-				const configuredClientSecret = configuredIdp.clientSecret?.trim() || undefined;
-				const cached = await this.dynamicAuthProviderStorageService.getClientRegistration(authProviderId);
-				const clientId = configuredClientId ?? cached?.clientId;
-				const clientSecret = configuredClientSecret ?? cached?.clientSecret;
-				let initialTokens: (IAuthorizationTokenResponse & { created_at: number })[] | undefined = undefined;
-				if (clientId) {
-					initialTokens = await this.dynamicAuthProviderStorageService.getSessionsForDynamicAuthProvider(authProviderId, clientId);
-				}
+				const initialTokens: (IAuthorizationTokenResponse & { created_at: number })[] | undefined = undefined;
 				// Note: XAA does NOT use CIMD or DCR — the requesting app must be pre-registered with the
 				// IdP under an admin-approved cross-app-access trust relationship. The ext-host side
 				// (`$registerXaaAuthProvider`) prompts the user for client_id + client_secret when there
@@ -210,8 +189,6 @@ export class MainThreadAuthentication extends Disposable implements MainThreadAu
 				return await this._proxy.$registerXaaAuthProvider(
 					issuer,
 					serverMetadata,
-					clientId,
-					clientSecret,
 					initialTokens
 				);
 			}
@@ -721,14 +698,11 @@ export class MainThreadAuthentication extends Disposable implements MainThreadAu
 			return undefined;
 		}
 		const trimmed = value.trim();
-		const key = mcpOAuthClientSecretStorageKey(resource, resourceClientId);
 		try {
 			if (trimmed.length === 0) {
 				// Blank-on-confirm means "no client secret" (e.g. token_endpoint_auth_method=none).
 				// Clear any stale value so subsequent prompts can still capture a fresh secret if needed.
-				await this.secretStorageService.delete(key);
 			} else {
-				await this.secretStorageService.set(key, trimmed);
 			}
 		} catch (err) {
 			this.logService.warn(`[XAA] Failed to persist resource client secret for ${resource} / ${resourceClientId}: ${(err as Error).message}`);

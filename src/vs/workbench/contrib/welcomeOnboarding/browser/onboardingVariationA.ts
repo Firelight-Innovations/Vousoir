@@ -6,8 +6,6 @@
 import { Disposable, DisposableStore } from '../../../../base/common/lifecycle.js';
 import { Emitter, Event } from '../../../../base/common/event.js';
 import { $, append, addDisposableListener, EventType, clearNode, getActiveWindow } from '../../../../base/browser/dom.js';
-import { isCancellationError } from '../../../../base/common/errors.js';
-import { StopWatch } from '../../../../base/common/stopwatch.js';
 import { URI } from '../../../../base/common/uri.js';
 import { isWindows, isMacintosh, isLinux } from '../../../../base/common/platform.js';
 import { assertDefined } from '../../../../base/common/types.js';
@@ -23,7 +21,6 @@ import { renderIcon } from '../../../../base/browser/ui/iconLabel/iconLabels.js'
 import { Action } from '../../../../base/common/actions.js';
 import { IWorkbenchThemeService } from '../../../services/themes/common/workbenchThemeService.js';
 import { EXTENSION_INSTALL_SKIP_WALKTHROUGH_CONTEXT, IExtensionGalleryService, IExtensionManagementService } from '../../../../platform/extensionManagement/common/extensionManagement.js';
-import { GitHubPaths, IDefaultAccountService } from '../../../../platform/defaultAccount/common/defaultAccount.js';
 import { CancellationToken } from '../../../../base/common/cancellation.js';
 import { INotificationService, Severity } from '../../../../platform/notification/common/notification.js';
 import { ConfigurationTarget, IConfigurationService } from '../../../../platform/configuration/common/configuration.js';
@@ -32,8 +29,6 @@ import product from '../../../../platform/product/common/product.js';
 import { IFileService } from '../../../../platform/files/common/files.js';
 import { IPathService } from '../../../services/path/common/pathService.js';
 import { ITelemetryService } from '../../../../platform/telemetry/common/telemetry.js';
-import { InstallChatEvent, InstallChatClassification, ChatSetupStrategy } from '../../chat/browser/chatSetup/chatSetup.js';
-import { ICommandService } from '../../../../platform/commands/common/commands.js';
 import { IAccessibilityService } from '../../../../platform/accessibility/common/accessibility.js';
 import {
 	OnboardingStepId,
@@ -132,12 +127,10 @@ export class OnboardingVariationA extends Disposable implements IOnboardingServi
 	private selectedAiMode: AiCollaborationMode = AiCollaborationMode.Balanced;
 	private enterpriseSignInUiState: EnterpriseSignInUiState = 'options';
 	private enterpriseInstanceValue = '';
-	private enterpriseSignInWatch: StopWatch | undefined;
 
 	constructor(
 		@ILayoutService private readonly layoutService: ILayoutService,
 		@IWorkbenchThemeService private readonly themeService: IWorkbenchThemeService,
-		@IDefaultAccountService private readonly defaultAccountService: IDefaultAccountService,
 		@IExtensionGalleryService private readonly extensionGalleryService: IExtensionGalleryService,
 		@IExtensionManagementService private readonly extensionManagementService: IExtensionManagementService,
 		@IConfigurationService private readonly configurationService: IConfigurationService,
@@ -145,7 +138,6 @@ export class OnboardingVariationA extends Disposable implements IOnboardingServi
 		@IFileService private readonly fileService: IFileService,
 		@IPathService private readonly pathService: IPathService,
 		@ITelemetryService private readonly telemetryService: ITelemetryService,
-		@ICommandService private readonly commandService: ICommandService,
 		@IAccessibilityService private readonly accessibilityService: IAccessibilityService,
 	) {
 		super();
@@ -230,7 +222,6 @@ export class OnboardingVariationA extends Disposable implements IOnboardingServi
 		this.disposables.add(addDisposableListener(this.backButton, EventType.CLICK, () => {
 			if (this.currentStepIndex === 0 && this.enterpriseSignInUiState === 'instance') {
 				this._logAction('cancelEnterpriseInstancePrompt');
-				this.enterpriseSignInWatch = undefined;
 				this._setEnterpriseSignInUiState('options');
 				return;
 			}
@@ -317,7 +308,6 @@ export class OnboardingVariationA extends Disposable implements IOnboardingServi
 			if (leavingStep === OnboardingStepId.SignIn) {
 				this.enterpriseSignInUiState = 'options';
 				this.enterpriseInstanceValue = '';
-				this.enterpriseSignInWatch = undefined;
 			}
 			if (leavingStep === OnboardingStepId.Personalize) {
 				this._applyKeymap(this.selectedKeymapId);
@@ -522,7 +512,6 @@ export class OnboardingVariationA extends Disposable implements IOnboardingServi
 		copilotDisclaimer.append(localize('onboarding.signIn.disclaimer.improveSuffix', " suggestions and use your data to improve the product."));
 		copilotDisclaimer.append(' ');
 		copilotDisclaimer.append(localize('onboarding.signIn.disclaimer.settingsPrefix', "You can change these "));
-		this._createInlineLink(copilotDisclaimer, localize('onboarding.signIn.disclaimer.settings', "settings"), this.defaultAccountService.resolveGitHubUrl(GitHubPaths.copilotSettings));
 		copilotDisclaimer.append(localize('onboarding.signIn.disclaimer.suffix', " anytime."));
 	}
 
@@ -645,7 +634,6 @@ export class OnboardingVariationA extends Disposable implements IOnboardingServi
 				e.preventDefault();
 				e.stopPropagation();
 				this._logAction('cancelEnterpriseInstancePrompt');
-				this.enterpriseSignInWatch = undefined;
 				this._setEnterpriseSignInUiState('options');
 			}
 		}));
@@ -704,42 +692,14 @@ export class OnboardingVariationA extends Disposable implements IOnboardingServi
 	}
 
 	private async _handleSignIn(socialProvider?: string): Promise<void> {
-		const provider = socialProvider ?? 'github';
-		const watch = StopWatch.create();
-		try {
-			const account = await this.defaultAccountService.signIn({
-				extraAuthorizeParameters: { get_started_with: 'copilot-vscode' },
-				provider: socialProvider,
-			});
-			if (account) {
-				this._userSignedIn = true;
-				this.telemetryService.publicLog2<InstallChatEvent, InstallChatClassification>('commandCenter.chatInstall', { installResult: 'installed', installDuration: watch.elapsed(), signUpErrorCode: undefined, provider });
-				// Run chat setup in the background (sign-up, extension install, entitlement resolution)
-				this.commandService.executeCommand('workbench.action.chat.triggerSetup', undefined, {
-					disableChatViewReveal: true,
-					setupStrategy: ChatSetupStrategy.DefaultSetup,
-				});
-				this._nextStep();
-			}
-		} catch (error) {
-			if (isCancellationError(error)) {
-				this.telemetryService.publicLog2<InstallChatEvent, InstallChatClassification>('commandCenter.chatInstall', { installResult: 'cancelled', installDuration: watch.elapsed(), signUpErrorCode: undefined, provider });
-				return;
-			}
-
-			this.telemetryService.publicLog2<InstallChatEvent, InstallChatClassification>('commandCenter.chatInstall', { installResult: 'failedNotSignedIn', installDuration: watch.elapsed(), signUpErrorCode: undefined, provider });
-			this.notificationService.notify({
-				severity: Severity.Error,
-				message: localize('onboarding.signIn.error', "Sign-in failed. You can try again later from the Accounts menu."),
-			});
-		}
+		// Account-based sign-in has been removed; simply continue the onboarding flow.
+		this._nextStep();
 	}
 
 	private async _handleEnterpriseSignIn(): Promise<void> {
 		const existingUri = this.configurationService.getValue<string>(defaultChat.providerUriSetting);
 		if (typeof existingUri !== 'string' || !GHE_FULL_URI_REGEX.test(existingUri)) {
 			this.enterpriseInstanceValue = existingUri ?? '';
-			this.enterpriseSignInWatch = StopWatch.create();
 			this._setEnterpriseSignInUiState('instance');
 			return;
 		}
@@ -754,43 +714,14 @@ export class OnboardingVariationA extends Disposable implements IOnboardingServi
 			this.enterpriseInstanceValue = resolvedUri;
 			await this._runEnterpriseSignInSetup();
 		} catch {
-			this.enterpriseSignInWatch = undefined;
 			this._setEnterpriseSignInUiState('instance');
 			this._notifyEnterpriseSignInError();
 		}
 	}
 
 	private async _runEnterpriseSignInSetup(): Promise<void> {
-		const watch = this.enterpriseSignInWatch ?? StopWatch.create();
-		const provider = defaultChat.provider.enterprise.id;
-		this._setEnterpriseSignInUiState('progress');
-
-		try {
-			const success = await this.commandService.executeCommand<boolean>('workbench.action.chat.triggerSetup', undefined, {
-				disableChatViewReveal: true,
-				setupStrategy: ChatSetupStrategy.SetupWithEnterpriseProvider,
-			});
-
-			if (success) {
-				this._userSignedIn = true;
-				this.telemetryService.publicLog2<InstallChatEvent, InstallChatClassification>('commandCenter.chatInstall', { installResult: 'installed', installDuration: watch.elapsed(), signUpErrorCode: undefined, provider });
-				this._nextStep();
-			} else {
-				this._setEnterpriseSignInUiState('options');
-			}
-		} catch (error) {
-			if (isCancellationError(error)) {
-				this._setEnterpriseSignInUiState('options');
-				this.telemetryService.publicLog2<InstallChatEvent, InstallChatClassification>('commandCenter.chatInstall', { installResult: 'cancelled', installDuration: watch.elapsed(), signUpErrorCode: undefined, provider });
-				return;
-			}
-
-			this._setEnterpriseSignInUiState('instance');
-			this.telemetryService.publicLog2<InstallChatEvent, InstallChatClassification>('commandCenter.chatInstall', { installResult: 'failedNotSignedIn', installDuration: watch.elapsed(), signUpErrorCode: undefined, provider });
-			this._notifyEnterpriseSignInError();
-		} finally {
-			this.enterpriseSignInWatch = undefined;
-		}
+		// Enterprise account sign-in has been removed; there is nothing to set up.
+		this._setEnterpriseSignInUiState('options');
 	}
 
 	private _notifyEnterpriseSignInError(): void {
@@ -1346,7 +1277,6 @@ export class OnboardingVariationA extends Disposable implements IOnboardingServi
 		this.stepFocusableElements.length = 0;
 		this.enterpriseSignInUiState = 'options';
 		this.enterpriseInstanceValue = '';
-		this.enterpriseSignInWatch = undefined;
 		this._isShowing = false;
 		this.disposables.clear();
 		this.stepDisposables.clear();

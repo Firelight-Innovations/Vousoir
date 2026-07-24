@@ -13,11 +13,9 @@ import './browser/workbench.zenMode.contribution.js';
 
 // Agent-sessions color tokens — side-effect import so they register in the
 // global color registry and appear in the color-theme JSON schema.
-import '../sessions/common/theme.js';
 
 // Agent-sessions size tokens (font ramp) — side-effect import so they register
 // in the global size registry and appear in the workbench-sizes JSON schema.
-import '../sessions/common/sizes.js';
 
 //#endregion
 
@@ -65,7 +63,6 @@ import './browser/parts/titlebar/menubar.contribution.js';
 
 import '../platform/actions/common/actions.contribution.js';
 import '../platform/undoRedo/common/undoRedoService.js';
-import '../platform/mcp/common/mcpResourceScannerService.js';
 import './services/workspaces/common/editSessionIdentityService.js';
 import './services/workspaces/common/canonicalUriService.js';
 import './services/extensions/browser/extensionUrlHandler.js';
@@ -79,9 +76,6 @@ import './services/configuration/common/jsonEditingService.js';
 import './services/textmodelResolver/common/textModelResolverService.js';
 import './services/editor/browser/editorService.js';
 import './services/editor/browser/editorResolverService.js';
-import './services/aiEmbeddingVector/common/aiEmbeddingVectorService.js';
-import './services/aiRelatedInformation/common/aiRelatedInformationService.js';
-import './services/aiSettingsSearch/common/aiSettingsSearchService.js';
 import './services/history/browser/historyService.js';
 import './services/activity/browser/activityService.js';
 import './services/keybinding/browser/keybindingService.js';
@@ -121,9 +115,6 @@ import './services/authentication/browser/authenticationService.js';
 import './services/authentication/browser/authenticationExtensionsService.js';
 import './services/authentication/browser/authenticationUsageService.js';
 import './services/authentication/browser/authenticationAccessService.js';
-import './services/authentication/browser/authenticationMcpUsageService.js';
-import './services/authentication/browser/authenticationMcpAccessService.js';
-import './services/authentication/browser/authenticationMcpService.js';
 import './services/authentication/browser/dynamicAuthenticationProviderStorageService.js';
 import './services/authentication/browser/authenticationQueryService.js';
 import '../platform/hover/browser/hoverService.js';
@@ -143,9 +134,6 @@ import './services/editor/browser/editorPaneService.js';
 import './services/editor/common/customEditorLabelService.js';
 import './services/dataChannel/browser/dataChannelService.js';
 import './services/inlineCompletions/common/inlineCompletionsUnification.js';
-import './services/chat/common/chatEntitlementService.js';
-import './services/agentHost/common/agentHostResourceService.js';
-import '../platform/agentHost/browser/agentHostConnectionsService.js';
 import './services/log/common/defaultLogLevels.js';
 
 import { InstantiationType, registerSingleton } from '../platform/instantiation/common/extensions.js';
@@ -171,9 +159,6 @@ import { ExtensionStorageService, IExtensionStorageService } from '../platform/e
 import { IUserDataSyncLogService } from '../platform/userDataSync/common/userDataSync.js';
 import { UserDataSyncLogService } from '../platform/userDataSync/common/userDataSyncLog.js';
 import { AllowedExtensionsService } from '../platform/extensionManagement/common/allowedExtensionsService.js';
-import { IAllowedMcpServersService, IMcpGalleryService } from '../platform/mcp/common/mcpManagement.js';
-import { McpGalleryService } from '../platform/mcp/common/mcpGalleryService.js';
-import { AllowedMcpServersService } from '../platform/mcp/common/allowedMcpServersService.js';
 import { IWebWorkerService } from '../platform/webWorker/browser/webWorkerService.js';
 import { WebWorkerService } from '../platform/webWorker/browser/webWorkerServiceImpl.js';
 
@@ -191,8 +176,6 @@ registerSingleton(ITextResourceConfigurationService, TextResourceConfigurationSe
 registerSingleton(IDownloadService, DownloadService, InstantiationType.Delayed);
 registerSingleton(IOpenerService, OpenerService, InstantiationType.Delayed);
 registerSingleton(IWebWorkerService, WebWorkerService, InstantiationType.Delayed);
-registerSingleton(IMcpGalleryService, McpGalleryService, InstantiationType.Delayed);
-registerSingleton(IAllowedMcpServersService, AllowedMcpServersService, InstantiationType.Delayed);
 
 //#endregion
 
@@ -200,13 +183,10 @@ registerSingleton(IAllowedMcpServersService, AllowedMcpServersService, Instantia
 //#region --- workbench contributions
 
 // Default Account
-import './services/accounts/browser/defaultAccount.js';
 
 // Account Policy Gate
-import './services/policies/browser/accountPolicyGate.contribution.js';
 
 // Policy Telemetry
-import './services/policies/browser/policyTelemetry.contribution.js';
 
 // Telemetry
 import './contrib/telemetry/browser/telemetry.contribution.js';
@@ -223,20 +203,10 @@ import './contrib/performance/browser/performance.contribution.js';
 import './contrib/notebook/browser/notebook.contribution.js';
 
 // Speech
-import './contrib/speech/browser/speech.contribution.js';
 
 // Chat
-import './contrib/chat/browser/chat.shared.contribution.js';
-import './contrib/chat/browser/chat.contribution.js';
-import './contrib/chat/browser/chat.view.contribution.js';
-import './contrib/inlineChat/browser/inlineChat.contribution.js';
 
 // Copilot Voice
-import './contrib/agentsVoice/browser/agentsVoice.contribution.js';
-import './contrib/mcp/browser/mcp.contribution.js';
-import './contrib/mcp/browser/mcp.view.contribution.js';
-import './contrib/chat/browser/chatSessions/chatSessions.contribution.js';
-import './contrib/chat/browser/contextContrib/chatContext.contribution.js';
 import './contrib/imageCarousel/browser/imageCarousel.contribution.js';
 
 // Interactive
@@ -264,7 +234,6 @@ import './contrib/bulkEdit/browser/bulkEditService.js';
 import './contrib/bulkEdit/browser/preview/bulkEdit.contribution.js';
 
 // Rename Symbol Tracker for Inline completions.
-import './contrib/inlineCompletions/browser/renameSymbolTrackerService.js';
 
 // Search
 import './contrib/search/browser/search.contribution.js';
@@ -383,18 +352,12 @@ import './contrib/themes/browser/themes.contribution.js';
 import './contrib/update/browser/update.contribution.js';
 
 // Surveys
-import './contrib/surveys/browser/nps.contribution.js';
-import './contrib/surveys/browser/languageSurveys.contribution.js';
 
 // Welcome
 import './contrib/welcomeGettingStarted/browser/gettingStarted.contribution.js';
-import './contrib/welcomeAgentSessions/browser/agentSessionsWelcome.contribution.js';
 import './contrib/welcomeWalkthrough/browser/walkThrough.contribution.js';
 import './contrib/welcomeViews/common/viewsWelcome.contribution.js';
 import './contrib/welcomeViews/common/newFile.contribution.js';
-
-// Welcome Onboarding
-import './contrib/welcomeOnboarding/browser/welcomeOnboarding.contribution.js';
 
 // Onboarding (scenario engine)
 import './contrib/onboarding/browser/onboarding.contribution.js';
@@ -428,7 +391,6 @@ import './contrib/userDataProfile/browser/userDataProfile.contribution.js';
 import './contrib/editSessions/browser/editSessions.contribution.js';
 
 // Remote Coding Agents
-import './contrib/remoteCodingAgents/browser/remoteCodingAgents.contribution.js';
 
 // Code Actions
 import './contrib/codeActions/browser/codeActions.contribution.js';
@@ -453,7 +415,6 @@ import './contrib/list/browser/list.contribution.js';
 import './contrib/accessibilitySignals/browser/accessibilitySignal.contribution.js';
 
 // Bracket Pair Colorizer 2 Telemetry
-import './contrib/bracketPairColorizer2Telemetry/browser/bracketPairColorizer2Telemetry.contribution.js';
 
 // Accessibility
 import './contrib/accessibility/browser/accessibility.contribution.js';
@@ -468,13 +429,11 @@ import './contrib/share/browser/share.contribution.js';
 import './contrib/scrollLocking/browser/scrollLocking.contribution.js';
 
 // Inline Completions
-import './contrib/inlineCompletions/browser/inlineCompletions.contribution.js';
 
 // Drop or paste into
 import './contrib/dropOrPasteInto/browser/dropOrPasteInto.contribution.js';
 
 // Edit Telemetry
-import './contrib/editTelemetry/browser/editTelemetry.contribution.js';
 
 // Opener
 import './contrib/opener/browser/opener.contribution.js';

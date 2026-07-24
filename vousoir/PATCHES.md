@@ -1,11 +1,30 @@
-# Vousoir — code-oss Patch Ledger
+# Vousoir — code-oss Divergence Ledger
 
-Work order §4.5. Every change to a code-oss core file (anything outside `extensions/vousoir-*`
-and `vousoir/`) must be logged here: file touched, what changed, why, and whether it will
-conflict on upstream merge. **Target: under 15 core patches for the shell work order.**
+> **Status change (2026-07-24): Vousoir is now a HARD FORK, not a bounded patch set.**
+>
+> This document began as a §4.5 "core patch ledger" with a **target of under 15 core patches**,
+> on the assumption that Vousoir would be a thin branding layer over an otherwise-pristine
+> code-oss that could still take upstream merges. That assumption no longer holds. On explicit
+> user direction — *"delete it ALL, code and config … we want this very bare bones, we will
+> rebrand this just like Cursor, they removed all of the microslop specific stuff"* — the entire
+> Microsoft/GitHub AI surface was **physically excised** from the tree.
+>
+> **Actual divergence from `1.130.0`: ~8,150 files changed — ~7,900 deletions, ~180 core-file
+> modifications, ~70 additions.** The ≤15 patch budget (work-order acceptance test #13) is
+> therefore **deliberately and knowingly retired.** It is not a regression to be fixed; it was
+> traded away for a clean-room base, with the cost stated and accepted at decision time.
+>
+> **Consequence for upstream merges:** a blanket `git merge` from `microsoft/vscode` is no longer
+> viable — thousands of deleted files would conflict or silently resurrect AI surface. Upstream
+> tracking, if desired later, becomes a *curated* activity: cherry-pick specific non-AI fixes, or
+> re-apply the small branding set (below) onto a fresh base. See DEAI-PROGRESS.md for the full
+> excision inventory.
 
-If a change can be made via `product.json`, a built-in extension, or configuration instead of
-a core edit — it must be.
+Historically (and still, for the branding/config layer): every change to a code-oss core file
+(anything outside `extensions/vousoir-*` and `vousoir/`) is logged here — file touched, what
+changed, why, and merge risk. For **branding/config**, if a change can be made via `product.json`,
+a built-in extension, or configuration instead of a core edit, it still must be. The **AI-excision**
+edits do not follow that rule — they are deletions and dead-reference cleanups by design.
 
 ---
 
@@ -29,9 +48,12 @@ git diff --name-status 1.130.0
 
 ---
 
-## Core patch ledger
+## Layer 1 — Branding / config core patches (merge-relevant)
 
-**Current count: 8 / 15.**
+These are the small, curated set of edits that give code-oss the Vousoir identity. They are the
+patches worth re-applying if the fork is ever rebased onto a newer upstream base. This set is
+**intentionally kept small**; the ≤15 spirit still governs *this layer*. (The base-tag and build
+facts below are unchanged by the excision.)
 
 | # | File | Change | Why | Upstream merge risk |
 |---|------|--------|-----|---------------------|
@@ -43,6 +65,47 @@ git diff --name-status 1.130.0
 | 6 | `build/hygiene.ts` | Replaced the blanket *"product.json: Contains 'extensionsGallery'"* error with a check that the gallery **is** Open VSX. Upstream forbids any gallery because the Microsoft Marketplace is not licensed for the OSS build; §4.3 *requires* Vousoir to ship one. Rather than delete the guard, it now fails if `extensionsGallery.serviceUrl` is anything other than `https://open-vsx.org/…` — so an accidental repoint at the Microsoft Marketplace still breaks hygiene, which is the risk the original check existed to prevent | The upstream rule and this fork's requirements are in direct conflict; hygiene fails on every commit otherwise. Inverting the check preserves its intent instead of discarding it | Medium. Small, self-contained block. If upstream rewrites this function the conflict is obvious and the resolution is to re-apply the inverted check. |
 | 7 | `build/filters.ts` | Added `!extensions/vousoir-*/**`, `!typings/vousoir/**`, `!vousoir/**` to `copyrightFilter` | Hygiene requires the *Microsoft* copyright header on every source file. Asserting Microsoft's copyright over code they did not write is false attribution, so first-party Vousoir code is exempt. The **unicode and indentation** filters were deliberately *not* touched — those are reasonable conventions, and our files were fixed to comply instead | Low. Three appended lines in a long exclusion list; conflicts resolve by keeping both sides. |
 | 8 | `eslint.config.js` | Appended a flat-config override setting `header/header: 'off'` for `extensions/vousoir-*/**`, `typings/vousoir/**`, `vousoir/**` | Same reason as #7 — the ESLint half of the same rule. Implemented as a trailing override rather than editing upstream's rule body: flat config is last-match-wins, so `src/` and every upstream extension still require the Microsoft header | Low. Purely additive block at the end of the array; nothing upstream is modified. |
+
+## Layer 2 — Total AI / Microsoft-service excision (the hard divergence)
+
+This is the bulk of the divergence and the reason the ≤15 budget no longer applies. It is a
+*category* of change, not an enumerable patch list — the authoritative, file-by-file record lives
+in [`DEAI-PROGRESS.md`](./DEAI-PROGRESS.md). Summary of what was **physically deleted** and what
+core files were **modified** to remove the resulting dead references:
+
+**Deleted extensions:** `copilot`, `github`, `github-authentication`, `microsoft-authentication`.
+
+**Deleted `src/` surface** (~7,900 files): the agents window (`src/vs/sessions/`), all chat
+(`contrib/chat`, `inlineChat`, `inlineCompletions`), agent runtime (`platform/agentHost`,
+`services/agentHost`), MCP (`platform/mcp`, `contrib/mcp`, `services/mcp`), speech/voice, language
+models, AI search (`aiRelatedInformation`, `aiSettingsSearch`, `aiEmbeddingVector`), default-account
++ Copilot enterprise managed-settings policy, `platform/browserView` + browser-tunnel-proxy,
+`platform/sandbox`, `platform/otel` (GenAI spans), and ~90 `vscode.proposed.{chat,languageModel,
+mcp,speech,ai,agent,browser,tool}*.d.ts`.
+
+**Modified core files (~180)** to excise dead references — concentrated in `workbench/contrib/*`
+(67), `workbench/api/*` (18), `build/azure-pipelines/*` (17), `workbench/services/*` (9), plus the
+process entrypoints, policy/config, userDataSync (MCP made non-syncable), and the build pipeline.
+One public-API reduction: **`src/vscode-dts/vscode.d.ts`** dropped `ExtensionContext.languageModel\
+AccessInformation`.
+
+**Config/CI:** `product.json` (removed `defaultChatAgent`, trusted-auth, sessions-window,
+agents-telemetry keys), `package.json` + `remote/package.json` (copilot/mxc deps), the whole Azure
+Copilot release-pipeline + SDK-canary subsystem, eslint agentHost/copilot rules, `.moduleignore`,
+smoke-test agents-window area.
+
+**Verification gate:** `npm run typecheck-client` was **exit 0 on a clean baseline** before any
+deletion and is **exit 0 again** after the excision (peak 712 → 0). The count was the progress
+metric throughout.
+
+**Known deferred residue** (compiles, dead, AI-flavoured — listed in DEAI-PROGRESS.md): the
+`ISearchService`/`ISearchResultProvider` AI-search *type* surface; leftover policy/account type
+members; `_chatExtensionId`; `agentSessionsWorkspace`; the generated `build/lib/policies/policyData\
+.jsonc` (regenerate via `npm run export-policy-data`, do not hand-edit). Three orphaned directories
+(`platform/otel`, `contrib/welcomeOnboarding`, and empties) await physical deletion — blocked for
+the agent by the permission classifier, pending a manual `rm` or a permission grant.
+
+---
 
 Everything else added so far is **purely additive** — new files and directories that do not exist
 upstream, so `git diff 1.130.0` is empty for them:
@@ -60,8 +123,24 @@ Additive files are *not* core patches — they cannot conflict on an upstream me
 ## Deviations from the work order
 
 Recorded per the orchestration rule that deviations are surfaced with justification rather than
-made silently. None of these change scope (§10); all are structural decisions forced by what the
-`1.130.0` base actually looks like.
+made silently. **D8 is a scope change** (user-directed); D1–D7 are structural decisions forced by
+what the `1.130.0` base actually looks like and do not change scope (§10).
+
+### D8 — Total AI excision; ≤15 core-patch budget (acceptance test #13) deliberately retired
+
+**The work order** framed Vousoir as a thin branding fork holding under 15 core patches so it could
+keep merging from upstream. **The user overrode that scope** in successive instructions — remove the
+agents window, all GitHub sign-in, and Copilot; then *"delete it ALL, code and config"*; then *"we
+want this very bare bones, we will rebrand this just like Cursor, they removed all of the microslop
+specific stuff."* When offered three excision depths, the user chose the deepest ("cut everything AI
+out of the tree") with the cost — *"CORE PATCH BUDGET: 8/15 → ~120/15"* — stated explicitly and
+accepted.
+
+**Result:** ~180 modified core files and ~7,900 deletions (see the header and Layer 2). Acceptance
+test #13 ("core patches ≤ 15") is now **intentionally failing** and is retired, not deferred. The
+branding layer (Layer 1) still honours the ≤15 spirit; the AI-excision layer (Layer 2) is a hard
+divergence by design. This is the one deviation that changes scope, and it does so on direct,
+repeated, explicit user instruction.
 
 ### D1 — `pnpm-workspace.yaml` lives at `vousoir/`, not the repo root
 

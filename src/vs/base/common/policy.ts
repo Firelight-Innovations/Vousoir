@@ -4,7 +4,6 @@
  *--------------------------------------------------------------------------------------------*/
 
 import { localize } from '../../nls.js';
-import { IPolicyData } from './defaultAccount.js';
 
 /**
  * System-wide policy file path for Linux systems.
@@ -106,7 +105,6 @@ export interface IPolicy {
 	 *
 	 * If `undefined`, the feature's setting is not locked and can be overridden by other means.
 	 */
-	readonly value?: (policyData: IPolicyData) => string | number | boolean | undefined;
 
 	/**
 	 * Declares Copilot managed-settings keys this policy's value callback reads.

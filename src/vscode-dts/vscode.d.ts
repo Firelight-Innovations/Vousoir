@@ -8566,13 +8566,6 @@ declare module 'vscode' {
 		 * The current `Extension` instance.
 		 */
 		readonly extension: Extension<any>;
-
-		/**
-		 * An object that keeps information about how this extension can use language models.
-		 *
-		 * @see {@link LanguageModelChat.sendRequest}
-		 */
-		readonly languageModelAccessInformation: LanguageModelAccessInformation;
 	}
 
 	/**
