@@ -30,3 +30,6 @@ export * from './spec-node-frontmatter.ts';
 
 // The loaded-node and assembled-tree shapes the spec store returns (ADR-002, ADR-008).
 export * from './spec-node.ts';
+
+// The compiled work order handed to a coding agent (source-of-truth Feature 4).
+export * from './work-order.ts';
