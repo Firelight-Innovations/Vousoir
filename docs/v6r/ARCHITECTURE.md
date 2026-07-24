@@ -457,6 +457,13 @@ order.** Rationale, in the user's terms: *"contracts, not substance" applies to 
 the principle the product applies to modules applies to what an agent is handed. Bounded by construction,
 so a deep tree cannot produce an unbounded prompt.
 
+> ⚠️ **Tier 3 is not computable today, and M4 ships an approximation.** `specNodeContractSchema` is
+> `{ id, kind, name, body }` with **no target reference**, so "contract link" does not exist in the
+> model — `parent` is the only inter-node relationship. M4 uses a **structural stand-in** (parent,
+> siblings, children), marked as such in code. It is too broad (an uncalled sibling leaks contracts in)
+> and too narrow (a real dependency on another branch contributes nothing). **Accepted as an interim,
+> not as the specification above.** `ADR.md` open question 10 — must settle before M6.
+
 Note tier 2 is **behaviour summaries, not contracts** — this is where the ruling departs from the
 proposal the ADR originally carried. An ancestor's contract is with the world outside the subtree; what a
 child needs to know is what its parent is *for*.
@@ -499,6 +506,12 @@ integration tests need machine-readable contracts. **That deadline is not M6.** 
 testing and is deferred out of M1–M6; M6 is this MCP server. Nothing here blocks M6 — but if you are
 building M6 and the contract body is still a string, the debt is still outstanding and it is yours to
 hand on.
+**Blocked before build, not before start:** the orchestrator is specified to run *"contract-based
+integration tests between siblings"*, which needs to know which node **provides** a contract and which
+**consumes** it. Contracts carry **no target reference** today (`ADR.md` open question 10), so there is
+no pair to test between — only per-node declarations. **Open questions 4 and 10 are two halves of one
+prerequisite** — *what* a contract says, and *who is on each end of it*. They were deferred separately
+and converge here. **Settle both before building this milestone, and land them together.**
 
 ---
 
@@ -526,6 +539,7 @@ hand on.
 | R2 | **Missing `ELECTRON_RUN_AS_NODE` in M5** — silently launches an Electron instance; no plain-Node test can catch it | Assert the env var in the spawn options in a unit test **and** verify once by hand in the real shell (`PATCHES.md:276`). |
 | R3 | **ADR-003 overrules a made Stage 3 decision** (React Flow + ELK) | **Approved 2026-07-24 with a revisit trigger**: contract links create cross-edges the strict-tree argument does not cover, so reconsider a routing library once the canvas renders contract edges *and* hand-rolled routing is ugly — not before. Still reversible behind the same pure-function signature. |
 | R9 | **Feature 3 is stale and says the opposite of ADR-003** — it forbids a manual "clean up" action (`vousoir-source-of-truth.md:86`); the 2026-07-24 ruling requires exactly that | Follow the ADR-003 amendment, not Feature 3. `vousoir-source-of-truth.md` needs its author's edit; until then the two documents disagree and the ADR is operative. |
+| R10 | **Contracts have no edges** — `specNodeContractSchema` has no target reference, so M4's "contracted neighbours" is a structural approximation and M6's sibling contract tests have no provider/consumer pair | `ADR.md` open question 10, lean B (optional `provider`/`consumes`, additive). Must settle before M6, alongside the contract-body structuring — they are one prerequisite in two halves. M4's approximation is marked in code and is too broad *and* too narrow. |
 | R4 | ~~**Work-order scope is unresolved** and gates M4's correctness~~ | **RESOLVED 2026-07-24.** Three tiers, specified in §6 M4. Residual risk is implementation, not scope: tier-3 leakage of neighbour internals. Test for absence. |
 | R5 | ~~**`*.v6r` filename collides with the `.v6r/` directory**~~ | **RESOLVED 2026-07-24** by renaming the directory to `.vousoir/` (ADR-002 amendment). The manifest keeps its `*.v6r` extension; one name now means one thing, so no `filenamePattern` stem rule is needed. Lands with M1, before any user repo contains either. |
 | R6 | **Worktree dependency drift** — two branches, one `node_modules` | Any lockfile change is stop-the-world. Re-verify both branches. |

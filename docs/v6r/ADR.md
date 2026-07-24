@@ -1399,6 +1399,11 @@ additively**, in this ADR's own style, so no existing spec file is invalidated.
 > need machine-readable contracts, and a free-form string cannot be checked by a machine. Feature 6 is
 > **deferred out of M1–M6** (see the Deferred table), so this blocks no planned milestone — and it is
 > not optional. **"Before M6" would be the wrong reading**: M6 is the MCP server.
+>
+> **This is one half of a prerequisite, not a whole one.** Open question 10 is the other half: a
+> contract has no target reference, so there is no provider/consumer pair to test *between*. Machine-
+> readable bodies without edges still cannot support a contract integration test. **Land the two
+> together.**
 
 **Extend test cases additively:** add optional `given` / `when` / `then` / `snippet` to
 `specNodeTestCaseSchema`, keeping `description` and `expected` required. Optional zod fields are
@@ -1483,7 +1488,7 @@ that a later reader does not mistake their absence for an oversight.
 
 | Feature | Source | Note |
 |---|---|---|
-| **6. Integration Testing Across Modules** | `vousoir-source-of-truth.md:112-121` | Verifies that sibling modules under one parent work together once both are built. Needs M5 dispatch to be routine first. **Blocked on a prerequisite recorded 2026-07-24:** `contractSchema`'s body is a free-form string, and agent-run contract integration tests need machine-readable contracts. Structuring it (ADR-008, additively) **must land before this feature is built**. |
+| **6. Integration Testing Across Modules** | `vousoir-source-of-truth.md:112-121` | Verifies that sibling modules under one parent work together once both are built. Needs M5 dispatch to be routine first. **Blocked on a two-part prerequisite recorded 2026-07-24**, both of which must land before it is built: (a) `specNodeContractSchema`'s body is a free-form string and an agent cannot diff prose — structure it additively (ADR-008, open question 4); (b) contracts carry **no target reference**, so there is no provider/consumer pair to test *between* (open question 10). *What* a contract says and *who is on each end of it* — **land them together.** |
 | **7. Traceability View** | `:123-132` | Jump from node → generated code and back. `.vousoir/traces/` (`v6r-layout.ts:20`) already reserves the storage; `vousoir-technical-spec.md:99` drafts `trace_code_to_spec` / `trace_spec_to_code` for the context server. |
 | **8. Contract Linter** | `:134-143` | Checks a built module's real boundary against its declared contract. This is what `verify_contracts` was for (dropped from the ADR-006 surface) and what the module-API / service-API / DB-schema contract split at `:186` is for. |
 | **11. Frontend/UX Whiteboard Mode** | `:166-175` | A separate freeform canvas. **Space is already reserved:** `V6R_SUBDIRS.whiteboards` exists in `typings/vousoir/src/v6r-layout.ts:18` (*"Frontend/UX canvases"*) and is in `V6R_COMMITTED_SUBDIRS`, so `v6rInit()` scaffolds `.vousoir/whiteboards/` today. `vousoir-technical-spec.md:125` earmarks *"tldraw or equivalent"*, undecided. |
@@ -1498,9 +1503,10 @@ worktree.
 ## Open questions
 
 All six original questions were **resolved by the user on 2026-07-24** while reviewing PR #11. Each is
-kept with its answer rather than deleted — the reasoning is the part worth having. Three more were
-generated afterwards: **#7** by the ruling itself, **#8** and **#9** by M1 (PR #12). **Only #7 is still
-open.**
+kept with its answer rather than deleted — the reasoning is the part worth having. Four more were
+generated afterwards: **#7** by the ruling itself, **#8**–**#10** by M1 (PR #12). **Two are open: #7
+(`layout.json` gitignored or committed) and #10 (contracts have no edges).** #10 must settle before M6
+and is the more consequential of the two.
 
 ### 1. Exact work-order scope — **RESOLVED 2026-07-24.** Unblocks M4.
 
@@ -1626,6 +1632,54 @@ the M1 brief did not, and M1 correctly followed the brief.
 
 **Answer:** it belongs to **M2**, which has to answer the `*.v6r` filename question anyway. `ARCHITECTURE.md`
 §6 has been corrected in both milestone rows so it does not read as dropped.
+
+### 10. Contracts are declarations, not edges — "contracted neighbours" is underivable. **OPEN.** Must settle before M6.
+
+Full framing: [PR #12 comment](https://github.com/Firelight-Innovations/Vousoir/pull/12#issuecomment-5074389294).
+
+**The fact.** `specNodeContractSchema` is `{ id, kind, name, body }`
+(`typings/vousoir/src/spec-node-frontmatter.ts:33-57`) — **no target reference**. The spec tree's only
+inter-node relationship is `parent`. A contract records *that* a node has a boundary, not *whom* it is
+with.
+
+**Consequence.** The work-order ruling (open question 1) says *"contracted neighbours' contract blocks
+only"*. That set cannot be computed. M4 proceeds on a **structural approximation** — parent, siblings,
+children — marked as such in code. **Accepted as an interim, not as a decision.** It is wrong in both
+directions: too broad (an uncalled sibling leaks its contracts into the work order) and too narrow (a
+genuine dependency three branches away contributes nothing, so the agent builds against an unstated
+boundary — the exact failure the product exists to prevent). It fails hardest on the case that matters
+most.
+
+**It reaches M6, not just M4 — and this is the part worth preserving.** M6's orchestrator is specified
+to run *"contract-based integration tests between siblings"*, which requires knowing which node
+**provides** a contract and which **consumes** it. With no edges there is nothing to test between, only
+an unordered pile of per-node declarations. So this and the dated commitment on structured contract
+bodies (open question 4, ADR-008) are **two halves of one prerequisite**: M6 needs both *what* a
+contract says and *who is on each end of it*. They were deferred separately, and nobody noticed they
+converge. **Whatever is decided here should land alongside the body structuring, not separately.**
+
+**Options.** (A) keep the structural approximation and revisit later — cheapest, and for a solo user
+reviewing every work order by hand possibly sufficient; (B) add an optional `provider`/`consumes` node
+reference to `specNodeContractSchema` — additive per ADR-008, smallest change that makes "contracted
+neighbours" real; (C) contracts become first-class objects, provided by one node and consumed by many
+— richest, matches how an API boundary actually behaves, but a substantially bigger change to the file
+format and the canvas. **Recorded lean: B**, because it is additive, unblocks M6's sibling tests, and
+can grow into C without a migration. A lean, not a decision — this is a product-shape question about
+what a module diagram *is*.
+
+**Constraints on any answer.** Additive (ADR-008): every spec file authored before the change stays
+valid, no migration. And no field describing a neighbour's **internals** — an edge between boundaries
+is still an edge; a reference to how a neighbour works is not.
+
+> **Sub-question closed, 2026-07-24.** It was asked whether the base branch `phase-2-links` already
+> means inter-node relationships in the spec model, in which case M4 should wait rather than
+> approximate. **It does not.** `phase-2-links` is one of four de-branding branches
+> (`phase-2-ai-ui`, `phase-2-branding`, `phase-2-endpoints`, `phase-2-links`); its commit
+> `1f7fd041daa` is *"Phase 2 (links): drop code.visualstudio.com refs from Linux appdata"* — "links"
+> means **hyperlinks to Microsoft properties**, stripped during de-branding. No spec-model link work
+> exists on it. **M4 should not wait for it.**
+
+Nothing is blocked today. It must be settled before M6.
 
 ---
 
