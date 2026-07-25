@@ -58,10 +58,32 @@ export function fakeUri(path: string): { path: string; with(change: { path: stri
 
 /** Minimal stand-in for `vscode.Webview`. `asWebviewUri` is identity — see the caveats above. */
 export function fakeWebview(): { cspSource: string; asWebviewUri(uri: unknown): unknown } {
+	return recordingWebview().webview;
+}
+
+/**
+ * A fake webview that also records every path handed to `asWebviewUri`.
+ *
+ * That list is what the conformance test checks against the provider's real
+ * `localResourceRoots`: an asset outside those roots is silently unloadable in Electron,
+ * and so is one that simply is not on disk.
+ */
+export function recordingWebview(): {
+	webview: { cspSource: string; asWebviewUri(uri: unknown): unknown };
+	requested: string[];
+} {
+	const requested: string[] = [];
 	return {
-		cspSource: 'vscode-webview://test',
-		asWebviewUri(uri: unknown) {
-			return uri;
+		requested,
+		webview: {
+			cspSource: 'vscode-webview://test',
+			asWebviewUri(uri: unknown) {
+				const path = (uri as { path?: unknown }).path;
+				if (typeof path === 'string') {
+					requested.push(path);
+				}
+				return uri;
+			},
 		},
 	};
 }
