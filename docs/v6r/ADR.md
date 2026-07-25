@@ -45,7 +45,7 @@ files are *not* core patches"* — it needs no `PATCHES.md` entry, even though `
 | ADR-002 | Specs are markdown + YAML frontmatter under `.vousoir/spec/`; `*.v6r` is a thin manifest | Accepted · **amended ×2, 2026-07-24** | Ratify the shipped `specNodeFrontmatterSchema` and `V6R_SUBDIRS`; the `*.v6r` file the editor binds to is a small project manifest, not the model. **Amended:** the directory is `.vousoir/`, not `.v6r/`; and the markdown **body** is canonical for behaviour prose, with the `behaviour` field a deprecated fallback. |
 | ADR-003 | Hand-roll recursive tree layout; no ELK or dagre | Accepted · **amended 2026-07-24** | ~150 lines of recursive nested-box layout, no layout library — the model is a strict tree, not a general graph. **Amended:** manual placement is supported, auto-layout is an explicit auto-tidy command, positions live in `.vousoir/layout.json`. **Supersedes Feature 3's auto-layout-on-every-mutation.** |
 | ADR-004 | Ship webview assets as extension files via `asWebviewUri` | Accepted | Canvas JS/CSS are real files under `media/`, loaded through `asWebviewUri` + `localResourceRoots` under a nonce CSP. No CDN, no network. |
-| ADR-005 | Dispatch Claude Code from the extension host via `child_process` | Accepted | M5 spawns `claude -p …` from extension-host Node code with `ELECTRON_RUN_AS_NODE=1`; no new IPC service. |
+| ADR-005 | Dispatch Claude Code from the extension host via `child_process` | Accepted · **amended 2026-07-24** | M5 spawns `claude --print …` with `ELECTRON_RUN_AS_NODE=1`, work order on **stdin**; no new IPC service. **Amended:** run status is transient and in-memory, **not** the frontmatter enum. |
 | ADR-006 | The MCP server is a standalone stdio node script, not in-process | Accepted | M6 ships `vousoir/services/spec-mcp/` as its own package with its own `main.ts`, launched by an external `claude` via `claude mcp add`; nine tools over `.vousoir/spec/`. |
 | ADR-007 | Develop in a git worktree with junctioned dependencies | Accepted (debt) | Work in `../vousoir-v6r` on `v6r/mvp`; `node_modules` and `build/node_modules` are junctions, `out/` is a real copy. Time-boxed debt with a documented undo — and it has already broken one build command. |
 | ADR-008 | Extend the existing spec-node schema; never fork it | Accepted | M1 adds typed `contracts[]` and given/when/then test fields to `specNodeFrontmatterSchema` in place; it does not introduce a parallel `ModuleNode` type, and it does not add `position`. |
@@ -591,10 +591,17 @@ serves. The milestone brief's `position` field is therefore **dropped from the M
 - One less dependency in `vousoir/pnpm-lock.yaml`, and no React/React Flow runtime in the webview for
   M2 — plain DOM or SVG is sufficient for nested boxes.
 - The layout function is the most testable unit on the canvas. Treat its tests as the M2 safety net.
-- **Debounce to structural mutations only, or typing in the spec panel will thrash the canvas.** Every
-  keystroke in the M3 behaviour field is a model mutation but not a structural one. Route mutations
-  through a single classifier that returns `structural | content` and let only `structural` reach the
-  layout pass. This is the single highest-risk detail in M2/M3.
+- ~~**Debounce to structural mutations only, or typing in the spec panel will thrash the canvas.**
+  Route mutations through a single classifier that returns `structural | content` and let only
+  `structural` reach the layout pass. This is the single highest-risk detail in M2/M3.~~
+  **Void since the 2026-07-24 amendment — do not build this classifier.** Layout now runs **on
+  command** (auto-tidy), not on mutation, so nothing needs to decide whether a mutation should
+  re-layout: no mutation triggers layout at all. The risk this bullet described cannot occur.
+  **A worked example of a second-order consequence.** The manual-placement ruling was about user
+  control over node positions. It also silently deleted what these docs had called the highest-risk
+  detail of two milestones — because a rule that never fires automatically needs no trigger
+  classification. Worth noting when weighing future amendments: the cheap ones can quietly retire
+  whole risk categories, and the docs will keep describing them until someone checks.
 - Edge rendering between non-parent/child nodes (a module contracting with a distant sibling) has no
   library to fall back on. Deferred: the canvas draws containment first. If arbitrary edges become a
   requirement, that is the moment to re-open this ADR — a general-graph requirement is exactly what
@@ -780,16 +787,18 @@ at build time or run time.
 
 ## ADR-005 — Dispatch Claude Code from the extension host via `child_process`
 
-**Status:** Accepted (2026-07-24)
-**Deciders:** orchestrating agent, pending user review
+**Status:** Accepted (2026-07-24) — **amended 2026-07-24** (transient run status; prompt via stdin)
+**Deciders:** orchestrating agent; amended after M5 shipped (PR #14)
 
 ### Context
 
 M5 hands a compiled work order to a coding agent and reflects the result on the canvas —
 `vousoir-source-of-truth.md` Feature 5: *"Node on the canvas visually reflects its status (spec'd →
 building → built)"* and *"the canvas should stay the single place the user looks at to understand the
-state of the whole project."* The node status enum already models this:
-`specNodeStatusSchema` = `unspecified | specified | building | built | verified`.
+state of the whole project."* The node status enum appears to model this:
+`specNodeStatusSchema` = `unspecified | specified | building | built | verified`. **The amendment below
+rejects that reading** — dispatch drives a transient run status and writes no spec file; whether a
+completed run should persist `built` is left open.
 
 Extension-host code is Node and can `require('node:child_process')`. Renderer and core workbench code
 cannot. Since ADR-001 puts the canvas in an extension anyway, dispatch is a direct `spawn` from code
@@ -825,17 +834,54 @@ M5 dispatches by spawning the `claude` CLI **directly from extension-host code**
 `node:child_process`:
 
 ```ts
-spawn('claude', ['-p', workOrder, '--permission-mode', 'acceptEdits'], {
+// The work order goes to STDIN, never argv — see the amendment below.
+const child = spawn('claude', [
+  '--print', '--input-format', 'text', '--output-format', 'stream-json',
+  '--verbose', '--permission-mode', 'acceptEdits',
+], {
   cwd: workspaceRoot,
   env: { ...process.env, [ELECTRON_RUN_AS_NODE_ENV_VAR]: '1' },
   stdio: ['pipe', 'pipe', 'pipe'],
   windowsHide: true,
-})
+});
+child.stdin.end(workOrder);
 ```
 
-stdout and stderr stream to the "Vousoir" `OutputChannel` and drive node status transitions
-`specified → building → built | failed`. No new IPC service, no shared-process contribution, no
-workbench-side dispatch path.
+stdout and stderr stream to the "Vousoir" `OutputChannel` and drive a **transient run status**. No new
+IPC service, no shared-process contribution, no workbench-side dispatch path.
+
+### Amendment (2026-07-24) — run status is transient; the prompt goes to stdin
+
+**1. Run status is in-memory and event-only. It is not the frontmatter enum.** This ADR originally
+said dispatch drives *"`specified → building → built | failed`"* — those are `specNodeStatusSchema`
+values, which live in a **committed spec file**. Nothing in M5 writes a spec file. The transient run
+status is `DispatchRunStatus = 'idle' | 'running' | 'done' | 'failed'`
+(`typings/vousoir/src/dispatch.ts:14`); **cancellation is not a fifth value** — a cancelled run settles
+as `failed` with `cancelled: true` on the result.
+
+The reason is recoverability: a crashed or cancelled run that had written `building` into a committed
+`.md` would leave that file stuck in a lie, with nothing to distinguish it from a run still in flight.
+Transient status cannot get stuck, because it does not survive the process.
+
+**Deliberately not decided:** whether a *successful* run should persist `built` to the spec file. M5
+raised it rather than settling it — the trace already records what happened, and whether `built` means
+*"an agent claimed success"* or *"the tests actually pass"* is Feature 6 / Feature 8 territory.
+
+**2. The work order goes to stdin, never argv.** `--input-format text` under `--print` makes the CLI
+read its prompt from stdin. Passing it as an argv positional works until it does not: **Windows caps a
+command line at ~32,768 characters**, and a work order carrying several contracts plus ancestor and
+neighbour context reaches that easily. The failure mode is a truncated or rejected prompt at some
+unpredictable spec size. **Do not "simplify" this back to `['-p', workOrder]`.**
+
+**3. Only `ELECTRON_RUN_AS_NODE` is set — not `PARENT_PID_ENV_VAR`.** The parent-pid watchdog exists so
+a long-lived **supervised service** self-exits when orphaned. `claude` is a **short-lived job**, and a
+run that is already writing files should be allowed to finish even if the editor closes. Both spawn
+snippets in these docs now agree on this.
+
+**4. `--verbose` is required** alongside `--print --output-format stream-json` in Claude CLI
+**2.1.219**. Without it the CLI rejects the combination. Harmless if a future version drops the
+requirement — but it is a **version coupling**, and the symptom on upgrade is an empty trace, which
+does not point at its own cause. See debt D12.
 
 **`ELECTRON_RUN_AS_NODE: '1'` is set on every spawn. This is not optional.**
 
@@ -909,7 +955,10 @@ silent"*).
   'pipe', 'pipe'], windowsHide: true })`
 - `extensions/vousoir-core/src/service-host/service-host-process.ts:121-134` — the graceful-then-kill
   disposal ladder to copy.
-- `typings/vousoir/src/spec-node-frontmatter.ts:15` — the `building | built` states dispatch drives.
+- `typings/vousoir/src/spec-node-frontmatter.ts:15` — the `building | built` states. **Dispatch does
+  not drive these** (amendment): they are committed spec-file values; run status is transient.
+- `typings/vousoir/src/dispatch.ts:14` — `export type DispatchRunStatus = 'idle' | 'running' | 'done' |
+  'failed';` — the transient enum, with cancellation carried as `cancelled: true` on the result.
 - `vousoir-source-of-truth.md:107` — *"Node on the canvas visually reflects its status (spec'd →
   building → built)."*
 - `vousoir-technical-spec.md:111` — *"**Claude Code adapter (v1):** drives the `claude` CLI. Two
@@ -925,8 +974,14 @@ silent"*).
 
 ## ADR-006 — The MCP server is a standalone stdio node script, not in-process
 
-**Status:** Accepted (2026-07-24)
-**Deciders:** orchestrating agent, pending user review
+**Status:** Accepted (2026-07-24) — **tool signatures corrected 2026-07-24** after M6 shipped (PR #15)
+**Deciders:** orchestrating agent; signature corrections follow ADR-008
+
+> **This ADR was written before ADR-008 landed and was never revisited.** Its **decisions** hold — the
+> standalone stdio server, the nine-tool surface, the drops and their reasons — and the shipped server
+> matches them. Its **tool signatures** were drafted against the pre-ADR-008 schema and were wrong in
+> two places, corrected below. **Treat the payload shapes here as indicative; `@vousoir/typings` is
+> authoritative.**
 
 ### Context
 
@@ -993,8 +1048,8 @@ family.
 |---|---|---|
 | `list_modules` | Every node as `{ id, title, parent, status }`. Because each record carries `parent`, the client reconstructs the tree — no separate `get_tree`. | all three lists |
 | `get_module` | One node's full spec: parsed frontmatter plus the markdown body. | `get_spec` (lists 1, 2) + "get module" (list 3) |
-| `get_contracts` | The `contract` field for a node and, optionally, its direct neighbours. Kept as its own tool because contracts are the product's thesis and an agent frequently wants only them. | lists 1, 2 |
-| `get_neighbor_context` | The ancestor chain plus directly-contracted siblings for a node — what an implementer needs to know without reading the whole tree. | list 3 |
+| `get_contracts` | **Corrected 2026-07-24:** returns `contracts[]` per ADR-008, with the deprecated scalar surfaced as `legacyContract` — *not* the single `contract` field this row originally described. Precedence comes from `resolveSpecNodeContracts`, so MCP and the canvas answer identically. Kept as its own tool because contracts are the product's thesis and an agent frequently wants only them. | lists 1, 2 |
+| `get_neighbor_context` | The ancestor chain plus neighbouring contract blocks. **Corrected 2026-07-24:** this row said *"directly-contracted siblings"* — that set is **not computable** (open question 10). It ships the same structural approximation as M4's tier 3 — **parent, siblings and children** — by delegating to the same `collectWorkOrderContext`, so the two cannot drift. | list 3 |
 | `get_work_order` | The compiled, self-contained work order for a node. | lists 1, 2 |
 
 *Write:*
@@ -1004,13 +1059,16 @@ family.
 | `create_module` | New node under a given parent; writes a new `.md` under `.vousoir/spec/`. | list 3 |
 | `update_module` | Replace `title`, `behaviour`, `status`, and/or the markdown body. | `put_spec` (list 2) |
 | `update_contract` | Replace a node's `contract`. Separate from `update_module` because it is the one field with a verification story attached and the one an agent most often changes alone. | list 3 |
-| `add_test_case` | Append one `{ id, description, expected }` to `testCases`. Separate because append-one is a genuinely different operation from replace-all on a structured array. | list 3 |
+| `add_test_case` | Append one test case to `testCases`. **Corrected 2026-07-24:** this row said `{ id, description, expected }` — the pre-ADR-008 shape. It takes the **full** `specNodeTestCaseSchema`, including optional `given` / `when` / `then` / `snippet`, and rejects a duplicate `id`. Separate because append-one is a genuinely different operation from replace-all on a structured array. | list 3 |
 
 *Dropped, with reasons:*
 
 - **`compile_work_order`** — folded into `get_work_order`. Compilation is deterministic from the spec
   files on disk, so a compile-then-get pair makes the agent issue two calls to observe one derived
-  value. Split it back out if caching ever makes compilation expensive.
+  value. Split it back out if caching ever makes compilation expensive. **Held under challenge:** the
+  M6 milestone brief listed `compile_work_order` as a tenth tool. The shipped server follows **this
+  ADR**, not that brief, and the discrepancy was flagged rather than silently resolved — which is the
+  correct handling. The nine-tool surface is what shipped.
 - **`verify_contracts`** (list 1) — that is Feature 8, the contract linter, explicitly deferred out of
   M1–M6.
 - **`propose_spec_change`** (lists 1, 2) — a review-workflow tool. With `update_module` /
@@ -1504,9 +1562,10 @@ worktree.
 
 All six original questions were **resolved by the user on 2026-07-24** while reviewing PR #11. Each is
 kept with its answer rather than deleted — the reasoning is the part worth having. Four more were
-generated afterwards: **#7** by the ruling itself, **#8**–**#10** by M1 (PR #12). **Two are open: #7
-(`layout.json` gitignored or committed) and #10 (contracts have no edges).** #10 must settle before M6
-and is the more consequential of the two.
+generated afterwards: **#7** by the ruling itself, **#8**–**#10** by M1 (PR #12), **#11** by M6
+(PR #15). **Three are open:** **#7** (`layout.json` gitignored or committed), **#10** (contracts have
+no edges), and **#11** (how to run a module's tests). #10 and #11 are the consequential pair — between
+them they block integration testing and every automated verification story.
 
 ### 1. Exact work-order scope — **RESOLVED 2026-07-24.** Unblocks M4.
 
@@ -1695,6 +1754,36 @@ is still an edge; a reference to how a neighbour works is not.
 > exists on it. **M4 should not wait for it.**
 
 Nothing is blocked today. It must be settled before M6.
+
+### 11. How does Vousoir know how to run a module's tests? **OPEN.** Blocks every automated verification story.
+
+Raised by M6 (PR #15). With integration testing blocked on #10, the honest fallback offered was *"run
+each sibling's own declared test cases"*. **M6 declined to build it, correctly.**
+
+**The fact.** A node's `testCases[]` describe *what* must be true. Nothing in the model says **how to
+execute them** — not the test runner, not the command, not the working-directory convention of the
+target repo. Inventing one would be the same class of guess as inferring contract pairings from
+containment: a plausible default that is silently wrong in every project that does it differently.
+
+**What it blocks.** Any automated verification. A node can reach `built` — an agent claimed success —
+but **nothing can move it to `verified`** without this. `specNodeStatusSchema` has carried `verified`
+since before M1; it is currently unreachable by any code path.
+
+**It connects to a question already deferred.** ADR-005's amendment left open whether a successful run
+should persist `built`, noting the real question is whether `built` means *"an agent claimed success"*
+or *"the tests actually pass"*. **That distinction cannot even be expressed until this is answered** —
+the second reading requires a way to run the tests. Treat them together.
+
+**Options.** (A) a per-project config field — one runner command for the whole repo, simplest, wrong
+for polyglot repos; (B) a manifest entry per module or subtree, more precise, more to author; (C) ask
+the agent to discover it, consistent with how the product already delegates, but non-deterministic and
+unverifiable. **No lean recorded** — this one turns on how much the product is willing to assume about
+a user's repo, which is the user's call.
+
+**Constraint.** Whatever it is, it describes *how to invoke* a module's tests, not what the module does
+internally. A runner command is a boundary fact; the test implementation is substance.
+
+Not blocked today — M1–M6 do not run tests. Settle it before any verification feature.
 
 ---
 
