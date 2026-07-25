@@ -71,6 +71,10 @@ jobs:
       matrix:
         os: [windows-latest, macos-latest, ubuntu-latest]
     runs-on: ${{ matrix.os }}
+    # A green build takes ~6 minutes. The cap is a backstop against the install retry
+    # amplifying a *deterministic* failure: when the toolchain check below was broken,
+    # five attempts turned a 4-minute failure into a 19-minute one.
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
