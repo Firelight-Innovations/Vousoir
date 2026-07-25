@@ -587,6 +587,32 @@ scale; do not build a lock. Also `types: []` — MCP payload schemas in `typings
 + zod, and the SDK can never be imported there (`typings-only-imports-zod`).
 **Changed by recon:** stands alone; does **not** extend the service-host protocol, which says of
 itself *"This is NOT MCP"* (ADR-006). Three drafted tool lists merged into one surface of nine.
+
+**Shipped (PR #15) — decisions worth not re-litigating:**
+
+- **No cached tree.** Every call opens the store, reads, and disposes. A cached snapshot would answer
+  **stale** *and* clobber the user's concurrent edit, given ADR-002's last-write-wins posture. The cost
+  is a re-read per call; the alternative is a correctness bug.
+- **Writes go through the M1 `SpecStore`, never straight to disk.** That is what makes a hand-written
+  YAML comment survive an agent changing one field, and it inherits id-uniqueness, parent validation
+  and cycle rejection identically to the editor. Tested.
+- **`get_work_order` calls the same `compileWorkOrder` the editor does**, asserted **byte-identical**
+  against the same golden. The fixture and golden are **exported from `@vousoir/shared`, not copied** —
+  a copy would drift while both tests still passed, which is the failure mode that makes two
+  implementations diverge silently.
+- **Two writers verified end-to-end:** an editor-side watcher fires when the MCP server writes
+  underneath it, and reload picks the change up. That is the DoD path, exercised rather than assumed.
+- **The orchestrator is sequential by default — a decision, not a simplification.** `acceptEdits`
+  writes into the user's workspace and worktree isolation is post-M6, so concurrent siblings produce
+  interleaved edits with no conflict detection and no way to attribute a bad change to a run. A
+  `concurrency` option is exposed for when isolation lands.
+- **Every `OrchestrationResult` carries `integrationTests: 'blocked-on-contract-edges'`** with a
+  readable explanation naming open question 10 — so the gap is visible to anything inspecting a result
+  and **cannot be mistaken for "ran, found nothing"**. Tested.
+- **The DoD live run deliberately avoided `claude mcp add`**, which mutates the user's global CLI
+  config outside the workspace. It used a temp `mcp.json` via `--mcp-config … --strict-mcp-config`,
+  exercising the identical protocol path with nothing to clean up. **Use this pattern for future live
+  verification.**
 **Carries a deadline set 2026-07-24:** `get_contracts` returns a **free-form string** body per contract
 kind (`ADR.md` open question 4). Structuring that body — additively, ADR-008 style — **must land before
 the milestone that builds Feature 6, "Integration Testing Across Modules"**, because agent-run contract
@@ -616,6 +642,8 @@ and converge here. **Settle both before building this milestone, and land them t
 | D10 | **`vousoir-technical-spec.md:93` permits a contract leak, read literally** | It specifies the work-order output as *"spec + contracts + tests + neighbor/ancestor context"* **without saying whose**. Read literally that allows emitting a neighbour's test cases — precisely the leak the product must not have. The code does the right thing; the spec does not say so. | **The user must make this edit — do not edit that file.** One clause fixes it: *"…the node's **own** spec, contracts and tests, plus neighbour/ancestor context as **contracts only**."* Same standing as Feature 3 (R9): a user-owned product document that the ADRs cannot amend. |
 | D11 | **Cancellation kills the direct child only** | If `claude` spawns grandchildren that survive the parent's `SIGKILL`, they are not reaped and keep writing to the user's workspace after the run reads as cancelled. | Process-group kill (`taskkill /T` on Windows, `kill(-pgid)` elsewhere). **Deliberately not built:** the failure could not be observed, and guessing at process-tree semantics is how you ship a killer that kills the wrong thing. Build it when it is reproducible. |
 | D12 | **`--verbose` is required by Claude CLI 2.1.219** alongside `--print --output-format stream-json` | A version coupling. If a future CLI drops the requirement the flag is harmless — but if the *contract* changes, the symptom is an **empty trace**, which does not point at its own cause. | Findable here when someone upgrades the CLI and traces go empty. Re-check the flag combination against `claude --help` at that point. |
+| D13 | **The MCP SDK pulls ~75 transitive packages**, including an Express path this stdio server never touches | The Vousoir layer's dependency surface roughly **doubled in one install**. Not a defect — but ADR-003 argued that the real cost of a dependency here is the shared `vousoir/pnpm-lock.yaml` and the surface it adds, and **that argument now cuts against a dependency we accepted**. Recorded because the inconsistency is the point. | Revisit if the surface becomes a problem: the server speaks stdio JSON-RPC and needs none of the HTTP transport. A hand-rolled stdio transport is plausible but is not worth doing on speculation. |
+| D14 | **Husky pre-commit hygiene rejects curly apostrophes — and reads the git *index*, not the working tree** | A fix applied to the file does nothing until it is **re-staged**, so the same error repeats and looks like the fix failed. Cheap to record, annoying to rediscover. | Use straight quotes in source. After fixing a hygiene failure, `git add` the file again **before** re-committing. |
 | D6 | **`launch` skill is stale and Windows-hostile** | Cannot be used here. References deleted `agentHost`. | Use `scripts/code.bat`. Rewrite the skill or delete it. |
 | D7 | `CONTRIBUTING.md:116` still states the retired ≤15-patch budget | Contradicts `PATCHES.md:14`. Misleads readers. | One-line fix. |
 | D8 | Deferred residue from the AI excision (`PATCHES.md:101-106`) | Dead but compiling: AI-search type surface, `_chatExtensionId`, three orphaned dirs. | Tracked in `DEAI-PROGRESS.md`. |

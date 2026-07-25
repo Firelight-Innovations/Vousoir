@@ -967,8 +967,14 @@ silent"*).
 
 ## ADR-006 — The MCP server is a standalone stdio node script, not in-process
 
-**Status:** Accepted (2026-07-24)
-**Deciders:** orchestrating agent, pending user review
+**Status:** Accepted (2026-07-24) — **tool signatures corrected 2026-07-24** after M6 shipped (PR #15)
+**Deciders:** orchestrating agent; signature corrections follow ADR-008
+
+> **This ADR was written before ADR-008 landed and was never revisited.** Its **decisions** hold — the
+> standalone stdio server, the nine-tool surface, the drops and their reasons — and the shipped server
+> matches them. Its **tool signatures** were drafted against the pre-ADR-008 schema and were wrong in
+> two places, corrected below. **Treat the payload shapes here as indicative; `@vousoir/typings` is
+> authoritative.**
 
 ### Context
 
@@ -1035,8 +1041,8 @@ family.
 |---|---|---|
 | `list_modules` | Every node as `{ id, title, parent, status }`. Because each record carries `parent`, the client reconstructs the tree — no separate `get_tree`. | all three lists |
 | `get_module` | One node's full spec: parsed frontmatter plus the markdown body. | `get_spec` (lists 1, 2) + "get module" (list 3) |
-| `get_contracts` | The `contract` field for a node and, optionally, its direct neighbours. Kept as its own tool because contracts are the product's thesis and an agent frequently wants only them. | lists 1, 2 |
-| `get_neighbor_context` | The ancestor chain plus directly-contracted siblings for a node — what an implementer needs to know without reading the whole tree. | list 3 |
+| `get_contracts` | **Corrected 2026-07-24:** returns `contracts[]` per ADR-008, with the deprecated scalar surfaced as `legacyContract` — *not* the single `contract` field this row originally described. Precedence comes from `resolveSpecNodeContracts`, so MCP and the canvas answer identically. Kept as its own tool because contracts are the product's thesis and an agent frequently wants only them. | lists 1, 2 |
+| `get_neighbor_context` | The ancestor chain plus neighbouring contract blocks. **Corrected 2026-07-24:** this row said *"directly-contracted siblings"* — that set is **not computable** (open question 10). It ships the same structural approximation as M4's tier 3 — **parent, siblings and children** — by delegating to the same `collectWorkOrderContext`, so the two cannot drift. | list 3 |
 | `get_work_order` | The compiled, self-contained work order for a node. | lists 1, 2 |
 
 *Write:*
@@ -1046,13 +1052,16 @@ family.
 | `create_module` | New node under a given parent; writes a new `.md` under `.vousoir/spec/`. | list 3 |
 | `update_module` | Replace `title`, `behaviour`, `status`, and/or the markdown body. | `put_spec` (list 2) |
 | `update_contract` | Replace a node's `contract`. Separate from `update_module` because it is the one field with a verification story attached and the one an agent most often changes alone. | list 3 |
-| `add_test_case` | Append one `{ id, description, expected }` to `testCases`. Separate because append-one is a genuinely different operation from replace-all on a structured array. | list 3 |
+| `add_test_case` | Append one test case to `testCases`. **Corrected 2026-07-24:** this row said `{ id, description, expected }` — the pre-ADR-008 shape. It takes the **full** `specNodeTestCaseSchema`, including optional `given` / `when` / `then` / `snippet`, and rejects a duplicate `id`. Separate because append-one is a genuinely different operation from replace-all on a structured array. | list 3 |
 
 *Dropped, with reasons:*
 
 - **`compile_work_order`** — folded into `get_work_order`. Compilation is deterministic from the spec
   files on disk, so a compile-then-get pair makes the agent issue two calls to observe one derived
-  value. Split it back out if caching ever makes compilation expensive.
+  value. Split it back out if caching ever makes compilation expensive. **Held under challenge:** the
+  M6 milestone brief listed `compile_work_order` as a tenth tool. The shipped server follows **this
+  ADR**, not that brief, and the discrepancy was flagged rather than silently resolved — which is the
+  correct handling. The nine-tool surface is what shipped.
 - **`verify_contracts`** (list 1) — that is Feature 8, the contract linter, explicitly deferred out of
   M1–M6.
 - **`propose_spec_change`** (lists 1, 2) — a review-workflow tool. With `update_module` /
@@ -1546,9 +1555,10 @@ worktree.
 
 All six original questions were **resolved by the user on 2026-07-24** while reviewing PR #11. Each is
 kept with its answer rather than deleted — the reasoning is the part worth having. Four more were
-generated afterwards: **#7** by the ruling itself, **#8**–**#10** by M1 (PR #12). **Two are open: #7
-(`layout.json` gitignored or committed) and #10 (contracts have no edges).** #10 must settle before M6
-and is the more consequential of the two.
+generated afterwards: **#7** by the ruling itself, **#8**–**#10** by M1 (PR #12), **#11** by M6
+(PR #15). **Three are open:** **#7** (`layout.json` gitignored or committed), **#10** (contracts have
+no edges), and **#11** (how to run a module's tests). #10 and #11 are the consequential pair — between
+them they block integration testing and every automated verification story.
 
 ### 1. Exact work-order scope — **RESOLVED 2026-07-24.** Unblocks M4.
 
@@ -1737,6 +1747,36 @@ is still an edge; a reference to how a neighbour works is not.
 > exists on it. **M4 should not wait for it.**
 
 Nothing is blocked today. It must be settled before M6.
+
+### 11. How does Vousoir know how to run a module's tests? **OPEN.** Blocks every automated verification story.
+
+Raised by M6 (PR #15). With integration testing blocked on #10, the honest fallback offered was *"run
+each sibling's own declared test cases"*. **M6 declined to build it, correctly.**
+
+**The fact.** A node's `testCases[]` describe *what* must be true. Nothing in the model says **how to
+execute them** — not the test runner, not the command, not the working-directory convention of the
+target repo. Inventing one would be the same class of guess as inferring contract pairings from
+containment: a plausible default that is silently wrong in every project that does it differently.
+
+**What it blocks.** Any automated verification. A node can reach `built` — an agent claimed success —
+but **nothing can move it to `verified`** without this. `specNodeStatusSchema` has carried `verified`
+since before M1; it is currently unreachable by any code path.
+
+**It connects to a question already deferred.** ADR-005's amendment left open whether a successful run
+should persist `built`, noting the real question is whether `built` means *"an agent claimed success"*
+or *"the tests actually pass"*. **That distinction cannot even be expressed until this is answered** —
+the second reading requires a way to run the tests. Treat them together.
+
+**Options.** (A) a per-project config field — one runner command for the whole repo, simplest, wrong
+for polyglot repos; (B) a manifest entry per module or subtree, more precise, more to author; (C) ask
+the agent to discover it, consistent with how the product already delegates, but non-deterministic and
+unverifiable. **No lean recorded** — this one turns on how much the product is willing to assume about
+a user's repo, which is the user's call.
+
+**Constraint.** Whatever it is, it describes *how to invoke* a module's tests, not what the module does
+internally. A runner command is a boundary fact; the test implementation is substance.
+
+Not blocked today — M1–M6 do not run tests. Settle it before any verification feature.
 
 ---
 

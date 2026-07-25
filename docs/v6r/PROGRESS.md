@@ -56,6 +56,13 @@ Updated after every milestone. Docs: [`ADR.md`](./ADR.md) (why) · [`ARCHITECTUR
 | 2026-07-24 | **The dispatch engine lives in `@vousoir/shared`, not the extension** — `vousoir-core` has no test runner and cannot cheaply get one while it imports `vscode`, so a dispatcher there would be untestable and the gate meaningless. **General rule: the extension keeps only what needs the editor. Applies to M6** | ARCHITECTURE.md §6 M5 |
 | 2026-07-24 | **Traces reuse `traceEventSchema` unchanged**; lines appended one at a time so a crash leaves a readable trace, each schema-validated *before* queueing | ARCHITECTURE.md §6 M5 |
 | 2026-07-24 | **`ELECTRON_RUN_AS_NODE` verified three ways** — pure options function, a test that it survives into the real `spawn`, and the live smoke run. No plain-Node test can see its absence | ARCHITECTURE.md §6 M5 |
+| 2026-07-24 | **ADR-006's tool signatures predated ADR-008 and were corrected** — `get_contracts` returns `contracts[]` with the scalar as `legacyContract`; `add_test_case` takes the full test-case schema. Its *decisions* stand and the shipped server matches them; **treat its payload shapes as indicative, `@vousoir/typings` is authoritative** | [ADR-006](./ADR.md) |
+| 2026-07-24 | **The nine-tool surface shipped as the ADR specified** — the M6 brief listed a tenth, `compile_work_order`; ADR-006 drops it deliberately, and the discrepancy was flagged rather than silently resolved | [ADR-006](./ADR.md) |
+| 2026-07-24 | **MCP server keeps no cached tree** — every call opens, reads, disposes. A snapshot would answer stale *and* clobber a concurrent user edit under last-write-wins | ARCHITECTURE.md §6 M6 |
+| 2026-07-24 | **MCP writes go through the M1 `SpecStore`**, so hand-written YAML comments survive an agent changing one field; `get_work_order` calls the same `compileWorkOrder` the editor does, asserted byte-identical against a golden **exported from `@vousoir/shared`, not copied** | ARCHITECTURE.md §6 M6 |
+| 2026-07-24 | **The orchestrator is sequential by default — a decision, not a simplification.** `acceptEdits` writes to the user's workspace and worktree isolation is post-M6, so concurrent siblings interleave edits with no conflict detection. A `concurrency` option waits for isolation | ARCHITECTURE.md §6 M6 |
+| 2026-07-24 | **`OrchestrationResult` always carries `integrationTests: 'blocked-on-contract-edges'`** with an explanation naming open question 10, so the gap cannot be mistaken for "ran, found nothing" | ARCHITECTURE.md §6 M6 |
+| 2026-07-24 | **Live MCP verification uses a temp `mcp.json` via `--mcp-config … --strict-mcp-config`, not `claude mcp add`** — same protocol path, nothing mutated outside the workspace, nothing to clean up. **The pattern for future live checks** | ARCHITECTURE.md §6 M6 |
 | 2026-07-24 | **The Claude Code VS Code extension dispatch path was deliberately skipped** — a second path doubles the surface for no capability the CLI path lacks | ARCHITECTURE.md §6 M5 |
 | 2026-07-24 | **M4 interface decisions recorded** — scalar-`contract` neighbours included untyped; contract-less neighbours omitted; the node's own sections always render ("declares no contracts") while context sections drop when empty; co-roots are siblings; slugs derive from `id` with a SHA-256 suffix only when sanitising was lossy | ARCHITECTURE.md §6 M4 |
 
@@ -64,7 +71,7 @@ Updated after every milestone. Docs: [`ADR.md`](./ADR.md) (why) · [`ARCHITECTUR
 Five of the six original questions were answered on 2026-07-24 and the sixth was resolved by ADR-008.
 M1 (PR #12) then raised two more — behaviour's home, and the unwritten `v6r-manifest.ts` — and both are
 now answered too (ADR.md open questions 8 and 9). All are kept with their answers in
-[`ADR.md`](./ADR.md#open-questions). **Two questions remain:**
+[`ADR.md`](./ADR.md#open-questions). **Three questions remain:**
 
 1. **Is `.vousoir/layout.json` gitignored or committed?** Deferred by the user. **Nothing blocks on it,
    but it decides itself if ignored:** `V6R_GITIGNORE_CONTENTS` is `cache/\n`, so a file at
@@ -79,6 +86,14 @@ now answered too (ADR.md open questions 8 and 9). All are kept with their answer
    **Must settle before M6, together with the contract-body structuring — they are one prerequisite in two
    halves.** Full framing in [`ADR.md` open question 10](./ADR.md#open-questions) and
    [PR #12 comment](https://github.com/Firelight-Innovations/Vousoir/pull/12#issuecomment-5074389294).
+3. **How does Vousoir know how to run a module's tests?** A node's `testCases[]` say *what* must be true;
+   nothing in the model says how to **execute** them — runner, command, working-directory convention.
+   M6 declined to invent one, correctly. **Blocks every automated verification story:** a node can reach
+   `built`, but nothing can move it to `verified`, which has been unreachable since M1. Connects to the
+   deferred question of whether `built` means "an agent claimed success" or "the tests pass" — that
+   distinction cannot be expressed until this is answered. Options: per-project config field, per-module
+   manifest entry, or agent discovery. **No lean** — it turns on how much the product assumes about a
+   user's repo. [`ADR.md` open question 11](./ADR.md#open-questions).
 
 **Also now stale, and not ours to fix:** `vousoir-source-of-truth.md` Feature 3 requires auto-layout to
 work invisibly and forbids a separate clean-up action (`:86`). The 2026-07-24 ruling requires exactly
