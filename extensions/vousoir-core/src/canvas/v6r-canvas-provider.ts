@@ -24,13 +24,20 @@ import {
 } from '@vousoir/typings';
 import { canvasHtml } from './canvas-html.ts';
 import { applyCanvasMutation } from './canvas-mutations.ts';
+import type { SpecPanelProvider } from '../panel/spec-panel-provider.ts';
+import type { SpecSelection } from '../panel/spec-selection.ts';
 
 /** The `viewType` the manifest contributes and `registerCustomEditorProvider` binds. */
 export const CANVAS_VIEW_TYPE = 'vousoir.canvas';
 
 /** Registers the canvas editor. Returns a disposable for `context.subscriptions`. */
-export function registerCanvasEditor(context: vscode.ExtensionContext, log: vscode.OutputChannel): vscode.Disposable {
-	return vscode.window.registerCustomEditorProvider(CANVAS_VIEW_TYPE, new V6rCanvasProvider(context, log), {
+export function registerCanvasEditor(
+	context: vscode.ExtensionContext,
+	log: vscode.OutputChannel,
+	selection: SpecSelection,
+	panel: SpecPanelProvider,
+): vscode.Disposable {
+	return vscode.window.registerCustomEditorProvider(CANVAS_VIEW_TYPE, new V6rCanvasProvider(context, log, selection, panel), {
 		webviewOptions: { retainContextWhenHidden: true },
 		supportsMultipleEditorsPerDocument: false,
 	});
@@ -39,12 +46,21 @@ export function registerCanvasEditor(context: vscode.ExtensionContext, log: vsco
 class V6rCanvasProvider implements vscode.CustomTextEditorProvider {
 	readonly #context: vscode.ExtensionContext;
 	readonly #log: vscode.OutputChannel;
+	readonly #selection: SpecSelection;
+	readonly #panel: SpecPanelProvider;
 	/** Drill-in target: render only this subtree. `undefined` shows the whole tree. */
 	#focusId: string | null = null;
 
-	constructor(context: vscode.ExtensionContext, log: vscode.OutputChannel) {
+	constructor(
+		context: vscode.ExtensionContext,
+		log: vscode.OutputChannel,
+		selection: SpecSelection,
+		panel: SpecPanelProvider,
+	) {
 		this.#context = context;
 		this.#log = log;
+		this.#selection = selection;
+		this.#panel = panel;
 	}
 
 	async resolveCustomTextEditor(
@@ -78,6 +94,9 @@ class V6rCanvasProvider implements vscode.CustomTextEditorProvider {
 		try {
 			store.watch(() => {
 				void draw();
+				// The panel decides for itself whether to reload: while the user is mid-edit
+				// it warns instead, because unsaved words exist nowhere else.
+				void this.#panel.onExternalChange();
 			});
 		} catch (error) {
 			// A project without a scaffolded `.vousoir/spec/` still opens; it just cannot watch.
@@ -141,7 +160,7 @@ class V6rCanvasProvider implements vscode.CustomTextEditorProvider {
 				return undefined;
 			}
 			case 'selectNode':
-				// M3 wires the spec panel to this; M2 only needs the canvas to send it.
+				this.#selection.set({ repoRoot, nodeId: parsed.data.id });
 				return undefined;
 			case 'error':
 				this.#log.appendLine(`[vousoir:canvas] webview error: ${parsed.data.message}`);
