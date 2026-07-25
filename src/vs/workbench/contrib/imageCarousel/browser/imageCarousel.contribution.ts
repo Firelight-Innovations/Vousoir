@@ -43,11 +43,6 @@ Registry.as<IConfigurationRegistry>(ConfigurationExtensions.Configuration).regis
 			markdownDescription: localize('imageCarousel.explorerContextMenu.enabled', "Controls whether the **Open in Images Preview** option appears in the Explorer context menu."),
 			tags: ['experimental'],
 		},
-		'imageCarousel.chat.enabled': {
-			type: 'boolean',
-			default: true,
-			description: localize('imageCarousel.chat.enabled', "Controls whether clicking an image attachment in chat opens the Images Preview viewer."),
-		},
 	}
 });
 
