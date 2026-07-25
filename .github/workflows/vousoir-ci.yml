@@ -6,8 +6,14 @@ name: Vousoir CI
 # workflows are left in place, untouched (§7.4).
 
 on:
+  # `pull_request` covers every branch under review. Pushing to a branch that has an
+  # open PR would otherwise run this whole workflow a second time on an identical tree
+  # — the two runs land in different concurrency groups (`refs/heads/x` vs
+  # `refs/pull/N/merge`), so neither cancels the other and every check appears twice.
+  # Restricting `push` to the integration branches keeps direct pushes covered without
+  # duplicating PR runs.
   push:
-    branches: ['**']
+    branches: [main, debrand-base]
   pull_request:
   workflow_dispatch:
 
@@ -88,8 +94,24 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential pkg-config libx11-dev libxkbfile-dev libsecret-1-dev libkrb5-dev fakeroot
 
+      # `npm ci` here pulls binary artifacts from third-party hosts (@vscode/ripgrep
+      # fetches a release asset from GitHub, node-gyp fetches headers). Those are
+      # rate-limited and fail transiently — a ripgrep 403 is what killed the build on
+      # PR #10 with no relation to the diff. Upstream's own pr.yml retries five times
+      # for the same reason; match it so a rate limit doesn't read as a code failure.
       - name: Install dependencies (npm — code-oss toolchain)
-        run: npm ci
+        shell: bash
+        run: |
+          set -e
+          for i in {1..5}; do
+            npm ci && break
+            if [ "$i" -eq 5 ]; then
+              echo "npm ci failed five times — giving up" >&2
+              exit 1
+            fi
+            echo "npm ci failed (attempt $i/5); retrying in $((i * 15))s..."
+            sleep $((i * 15))
+          done
 
       - name: Compile
         run: npm run compile
