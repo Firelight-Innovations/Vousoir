@@ -58,8 +58,9 @@ standalone server process, not a workbench service. See ADR-006.
 
 | Rule | Detail |
 |---|---|
-| Namespace | `vousoir.*` for every command, setting, view and viewType. Today: viewsContainer `vousoir`, view `vousoir.panel`. **No commands are contributed yet** — M2 adds the first. |
+| Namespace | `vousoir.*` for every command, setting, view and viewType. Contributed today: viewsContainer `vousoir`, custom editor `vousoir.canvas`, the spec-panel view, and commands for canvas mutations, auto-tidy, work-order compile, dispatch and MCP registration. |
 | Module system | **ESM.** `extensions/vousoir-core/package.json` has `"type": "module"`; `esbuild.mts` sets `format: 'esm'`, `external: ['vscode']`. No `require()`, no `__dirname`. See ADR-001. |
+| Webview assets | `media/canvas.js` is **plain JavaScript**, via the lint allowlist — following upstream's own convention for this file class (`media-preview/media/*Preview.js`). TypeScript would need DOM lib types the package deliberately excludes, plus a second build target, to restate a convention that already exists. Logged in `PATCHES.md` row 5. |
 | Indentation | Tabs. |
 | Copyright header | Required on core files; **exempt** for `extensions/vousoir-*`, `typings/vousoir/**`, `vousoir/**` (`PATCHES.md` Layer 1 rows #7, #8 — `build/filters.ts` + `eslint.config.js`). Do not add Microsoft's header to Vousoir-layer files. |
 | Naming | camelCase code, **kebab-case filenames** (every dot-segment kebab), SCREAMING_SNAKE constants, PascalCase types. |
@@ -77,7 +78,16 @@ Four dependency-cruiser rules, `severity: error`, enforced in CI (`.dependency-c
 - `ext-imports-only-typings-and-shared` — `extensions/vousoir-*` may import `@vousoir/typings` and `@vousoir/shared`, nothing else from the tree.
 - `no-cross-service-imports` — services talk over MCP/IPC, never imports.
 
-Plus `typings-only-imports-zod`, `no-circular`, `no-orphans`, `no-unresolvable`.
+Plus `typings-only-imports-zod`, `no-circular`, `no-orphans`, `no-unresolvable`. **All eight rules are
+intact.**
+
+> **`no-orphans` gained one `pathNot` entry in M2 — read it correctly.** It exempts
+> `^extensions/vousoir-[^/]+/media/`. A webview script is fetched **by URL** through `asWebviewUri`
+> (ADR-004), so it can never have an incoming import edge, and `no-orphans` was flagging it as dead
+> code. That is a **misclassification of one file class**, in the same category as the existing
+> `extension.ts` and `index.ts` exemptions — entry points the runtime loads rather than modules
+> anything imports. **No boundary rule was relaxed, and none of the four walls was touched.** Do not
+> cite this later as a weakened wall.
 
 **Hitting a boundary error is a design signal, not an obstacle.** `vousoir/CONTRIBUTING.md:86-93`:
 *"Do **not** route around it… Need a shape from another package? Move it to `@vousoir/typings`."*
@@ -92,7 +102,7 @@ wastes minutes or reports a failure you did not cause.
 | You changed | Run | Measured |
 |---|---|---|
 | `extensions/vousoir-core/**` — **the M2/M3/M5 inner loop** | `cd extensions/vousoir-core; node --experimental-strip-types ./esbuild.mts` | exit 0, **0.28 s** |
-| Anything in the Vousoir layer — **the gate before every commit** | `cd vousoir; pnpm run verify` | exit 0, **66 tests** (22 at recon; M1 took it to 66) |
+| Anything in the Vousoir layer — **the gate before every commit** | `cd vousoir; pnpm run verify` | exit 0, **254 tests** (22 at recon; 212 at M3; 254 with the smoke harness) |
 | `src/` (core) | `npm run typecheck-client` | exit 0, **6.48 s** |
 | All built-in extensions | `npm run gulp compile-extensions` | **BROKEN — see below** |
 | Run the app | `scripts/code.bat` | Windows |
@@ -207,30 +217,30 @@ Every signature below was read from the real `.d.ts`. Nothing here is invented.
 
 Extension host — signatures verified at `vscode.d.ts:10527`, `:10546`, `:10581`, `:10598`:
 
-```ts
-class V6rCanvasProvider implements vscode.CustomEditorProvider<V6rDocument> {
-  private readonly _onDidChange = new vscode.EventEmitter<vscode.CustomDocumentEditEvent<V6rDocument>>();
-  readonly onDidChangeCustomDocument = this._onDidChange.event;
+**Shipped as `CustomTextEditorProvider`, not the full `CustomEditorProvider` this section originally
+sketched** (PR #17). The `*.v6r` manifest genuinely **is** a text document, so the framework owns dirty
+state, save, revert and backup, and the canvas reimplements none of it. The model is not in that
+document — it is in `.vousoir/spec/`.
 
-  openCustomDocument(uri: vscode.Uri, _ctx: vscode.CustomDocumentOpenContext, _t: vscode.CancellationToken): Thenable<V6rDocument> { … }
-  resolveCustomEditor(document: V6rDocument, panel: vscode.WebviewPanel, _t: vscode.CancellationToken): Thenable<void> | void { … }
-  saveCustomDocument(document: V6rDocument, _c: vscode.CancellationToken): Thenable<void> { … }
-  saveCustomDocumentAs(document: V6rDocument, destination: vscode.Uri, _c: vscode.CancellationToken): Thenable<void> { … }
-  revertCustomDocument(document: V6rDocument, _c: vscode.CancellationToken): Thenable<void> { … }
-  backupCustomDocument(document: V6rDocument, ctx: vscode.CustomDocumentBackupContext, _c: vscode.CancellationToken): Thenable<vscode.CustomDocumentBackup> { … }
+```ts
+class V6rCanvasProvider implements vscode.CustomTextEditorProvider {
+  resolveCustomTextEditor(document: vscode.TextDocument, panel: vscode.WebviewPanel, _t: vscode.CancellationToken): void { … }
 }
 
 context.subscriptions.push(
-  vscode.window.registerCustomEditorProvider('vousoir.canvas', new V6rCanvasProvider(context), {
-    supportsMultipleEditorsPerDocument: false,
+  vscode.window.registerCustomEditorProvider('vousoir.canvas', new V6rCanvasProvider(context, log), {
     webviewOptions: { retainContextWhenHidden: true },
   }),
 );
 ```
 
-`CustomDocument` needs only `{ readonly uri: Uri; dispose(): void }` (`:10377-10389`).
-`onDidChangeCustomDocument` must fire `CustomDocumentEditEvent` **or** `CustomDocumentContentChangeEvent`,
-never both (`:10579`).
+The full `CustomEditorProvider` surface below is what you would need **only if** the editor owned a
+binary or non-text model — six methods plus an event, all of which the text variant gets for free:
+`openCustomDocument`, `resolveCustomEditor`, `saveCustomDocument`, `saveCustomDocumentAs`,
+`revertCustomDocument`, `backupCustomDocument`, `onDidChangeCustomDocument`. If that ever becomes
+necessary: `CustomDocument` needs only `{ readonly uri: Uri; dispose(): void }` (`:10377-10389`), and
+`onDidChangeCustomDocument` must fire `CustomDocumentEditEvent` **or**
+`CustomDocumentContentChangeEvent`, never both (`:10579`).
 
 ### Webview assets + CSP (ADR-004)
 
@@ -260,15 +270,31 @@ HTML-builder function, not at module scope.
 
 ```ts
 import { spawn } from 'node:child_process';
-import { ELECTRON_RUN_AS_NODE_ENV_VAR, PARENT_PID_ENV_VAR } from '@vousoir/typings';
+import { ELECTRON_RUN_AS_NODE_ENV_VAR } from '@vousoir/typings';
 
-spawn('claude', ['-p', workOrder, '--permission-mode', 'acceptEdits'], {
+const child = spawn('claude', [
+  '--print', '--input-format', 'text', '--output-format', 'stream-json',
+  '--verbose', '--permission-mode', 'acceptEdits',
+], {
   cwd: workspaceRoot,
-  env: { ...process.env, [ELECTRON_RUN_AS_NODE_ENV_VAR]: '1', [PARENT_PID_ENV_VAR]: String(process.pid) },
+  env: { ...process.env, [ELECTRON_RUN_AS_NODE_ENV_VAR]: '1' },
   stdio: ['pipe', 'pipe', 'pipe'],
   windowsHide: true,
 });
+child.stdin.end(workOrder);   // NEVER argv — see below
 ```
+
+**The work order goes to stdin, not argv.** Windows caps a command line at **~32,768 characters**, and
+a work order with several contracts plus neighbour context clears that easily — so `['-p', workOrder]`
+truncates or rejects prompts at some unpredictable spec size. `--input-format text` under `--print`
+makes the CLI read stdin instead, which has no such limit. **Do not "simplify" this back.**
+
+**Only `ELECTRON_RUN_AS_NODE` is set — deliberately not `PARENT_PID_ENV_VAR`.** The parent-pid watchdog
+is for long-lived **supervised services** that must self-exit when orphaned. `claude` is a **short-lived
+job**, and a run already writing files should be allowed to finish even if the editor closes.
+
+**`--verbose` is required** with `--print --output-format stream-json` in Claude CLI **2.1.219** (debt
+D12).
 
 **`ELECTRON_RUN_AS_NODE: '1'` is mandatory on every spawn** (`vousoir/PATCHES.md:271`). Under the
 extension host `process.execPath` is the Electron binary. **A plain-Node unit test cannot catch its
@@ -388,11 +414,20 @@ validates. M1 added a **second** fixture set, a real `.md` tree at
 
 All paths relative to the repo root. Every milestone's gate is `cd vousoir; pnpm run verify` green.
 
-> **"Creates" is a prediction, not a commitment.** For unbuilt milestones these filenames are a
-> sketch of the shape, not a checklist to satisfy. The 300-line soft cap decides how many files a
-> milestone actually needs, and it has already made one of these predictions wrong: M4 was written
-> here as one `compile.ts` and shipped as five modules. **Build what the work needs and correct this
-> section afterwards** — do not split or merge files to match a guess made before the code existed.
+> **"Creates" was a prediction and it has a measured track record: wrong four times out of four.**
+>
+> | Milestone | Predicted | Shipped |
+> |---|---|---|
+> | M4 | one `compile.ts` + template | **five** modules; entry named `compile-work-order.ts` |
+> | M5 | dispatcher in the extension | engine in **`@vousoir/shared`**; extension keeps one command |
+> | M2 | layout in the extension + a second esbuild entry | layout in **`@vousoir/shared`**; **no** second entry |
+> | M3 | panel inside the canvas | panel in the **sidebar** |
+>
+> Two forces caused every miss, and both are knowable in advance: the **300-line soft cap** decides
+> file count, and **anything testable belongs in `@vousoir/shared`** because the extension has no test
+> runner. Sections marked **"Created (actual …)"** are verified against shipped code; anything still
+> reading **"Creates"** is a sketch. **Build what the work needs and correct this section afterwards** —
+> never split, merge or relocate a file to match a guess made before the code existed.
 
 ### M1 — Model + spec store
 
@@ -418,19 +453,38 @@ rename in M1 is what keeps M2 from having to migrate a directory that already ex
 
 ### M2 — Canvas custom editor + auto-layout
 
-**Creates:** `extensions/vousoir-core/src/canvas/` (provider, document, message protocol),
-`extensions/vousoir-core/src/canvas/layout.ts` (**pure function, no `vscode` import**),
-`extensions/vousoir-core/media/canvas.{js,css}`, `customEditors` + first `vousoir.*` commands in
-`package.json` (including the auto-tidy command), a second browser-target entry in `esbuild.mts`,
-a `.vousoir/layout.json` reader/writer, and `typings/vousoir/src/v6r-manifest.ts` (moved here from
-M1 — the manifest is JSON, and its filename question is M2's to answer).
+**Created** (actual, PR #17 — this section predicted the layout engine in the extension and a second
+esbuild entry; **both were wrong**): the layout engine is in **`@vousoir/shared`** —
+`vousoir/shared/src/layout/layout-spec-tree.ts` and `layout-store.ts` — as a pure function, which is
+exactly **why it has 26 tests** — see the placement rule below. The extension holds only
+`extensions/vousoir-core/src/canvas/` — `v6r-canvas-provider.ts`, `canvas-html.ts`,
+`canvas-mutations.ts` — plus `media/canvas.{js,css}`. **No second esbuild entry exists**: the webview
+imports no modules, so `esbuild.mts` still has the single `extension` entry point.
 **Acceptance:** open a `*.v6r` file → nested boxes render for the tree in `.vousoir/spec/`; add, delete and
 re-nest a node → the file on disk updates; drag a node → its position persists to
 `.vousoir/layout.json` and survives a `.vousoir/cache/` wipe; run auto-tidy → layout re-runs;
-**no other action moves a node the user placed**; `layout.ts` has direct unit tests.
-**Risk:** **layout thrash.** Route every mutation through one classifier returning
-`structural | content`; only `structural` triggers layout. Get this wrong and M3 typing re-lays the
-canvas on every keystroke.
+**no other action moves a node the user placed**; the layout function has direct unit tests.
+**Risk:** ~~layout thrash / mutation classifier~~ — **void, see R1.** Layout runs on command, not on
+mutation.
+
+**Every structural edit routes through the M1 `SpecStore` — this is the most consequential decision in
+M2, and it is a principle, not an implementation note.** Delete re-parents orphans to the grandparent
+and refuses roots; re-parent refuses cycles. **The canvas invents no rules of its own.** The canvas and
+the MCP server therefore enforce **one** rule set rather than two that drift — which is the same
+argument ADR-008 makes about one schema, applied to behaviour rather than shape.
+
+**Auto-tidy is a thin wrapper over placement-clearing, not a second layout path.** Clearing a
+placement already returns a node to its auto position; Tidy just persists that clearing. A test asserts
+a cleared placement lands the node **byte-identically** where auto-layout would have put it. So there is
+one layout implementation, not two that could disagree.
+
+**Nothing in the codebase clears placements except Tidy.** That is how *"auto-layout never silently
+overrides"* is enforced **structurally rather than by discipline** — there is no other code path that
+could.
+
+**`CustomTextEditorProvider`, not the full `CustomEditorProvider`** that ADR-001 sketches. The `*.v6r`
+manifest genuinely **is** a text document, so the framework owns dirty state, save and revert, and the
+canvas reimplements none of it. The model lives in `.vousoir/spec/`, not in that document.
 **Changed by recon:** hand-rolled recursive layout, no ELK/dagre, no React Flow (ADR-003) — this
 overrules the Stage 3 tech-stack selection. Approved by the user on 2026-07-24 **with a revisit
 trigger**: reconsider a routing library only once the canvas renders contract edges *and* hand-rolled
@@ -440,16 +494,143 @@ auto-tidy command that **must never silently override a user's placement**. This
 `vousoir-source-of-truth.md:86` (Feature 3), which says auto-layout *"has to work invisibly, not be a
 separate 'clean up' action"*. **Do not implement Feature 3 as written** — see the ADR-003 amendment.
 
+> ### ⚠️ Still needs a human launch — but the remaining risk is now specific
+>
+> **What the smoke harness does exercise** (PR #19, 42 tests in `vousoir-core` under vitest +
+> happy-dom): it loads the **actual** `media/canvas.js` and `media/spec-panel.js` off disk into HTML
+> from the **actual** builders, driven by **actual** `layoutSpecTree` output. **The render path and the
+> message protocol in both directions are exercised.** This is no longer "never run by anything".
+>
+> **What it cannot prove — and this is the single most likely remaining failure: the CSP.** happy-dom
+> **does not enforce it**, so a script blocked by a bad nonce or a missing `localResourceRoots` entry
+> passes here and fails in Electron. **If the canvas is blank, check the CSP first.**
+>
+> Also unproven: `asWebviewUri` resolution; real layout and painting (no box model —
+> `getBoundingClientRect` is stubbed); and true pointer semantics.
+>
+> **M3's panel is gated on M2, not merely also-pending.** The panel is driven by canvas selection, so
+> if the canvas is blank no selection ever reaches it and nothing in M3 is reachable either.
+> **One human session validates both:** launch `scripts/code.bat`, open a `*.v6r` file, confirm nodes
+> render, select one, confirm the panel populates.
+>
+> A static pre-flight also holds: all four media assets exist on disk, both providers genuinely *set*
+> `localResourceRoots`, the CSP is `default-src 'none'` with a per-render nonce, and `customEditors`
+> contributes `vousoir.canvas` on `*.v6r`.
+
+#### The smoke harness found a real bug — which is the argument for its existence
+
+**`dropTargetAt`'s comment claimed it ignored *"the one being dragged and its own subtree"*. The code
+only skipped the dragged node.** Dragging a module onto its own child therefore proposed a
+guaranteed-cycle re-parent. **Nothing could corrupt** — the M1 store refuses cycles — but a natural
+gesture bounced off an error instead of doing the obvious thing, since dragging a parent onto a child
+you can see inside it is a **placement, not a mistake**. The test was written to assert intended
+behaviour, **watched to fail**, then the code fixed to match its own comment.
+
+**The general lesson: this was a comment/code divergence in a file nothing executed.** No amount of
+reading catches that — the comment reads as a specification and the code reads as plausible, and only
+running it disagrees. That is what the harness is for.
+
+#### Two config changes, and one dependency
+
+**1. `ext-imports-only-typings-and-shared` gained a `node_modules/` exclusion — the second such
+exemption, and it is the same shape as the first.** The pnpm workspace root **is** `vousoir/`, so every
+third-party package an extension depends on resolves to a path under `vousoir/` — meaning a
+devDependency like vitest read as a Vousoir-layer import. **The rule governs which *source* packages an
+extension may reach into**, and it was written before any extension had a dependency of its own, so
+**the false positive was latent, not introduced.** All 8 rules intact; `from` untouched; no source
+boundary relaxed. **Do not read this as a weakened wall** — see also the `no-orphans` `media/`
+exemption in §2; both are misclassification fixes for a path class, and they should be found together.
+
+*Rejected:* moving the harness under `vousoir/` — that would have made the Vousoir layer read extension
+files, which is backwards.
+
+**2. tsconfig split, to preserve the no-DOM guarantee.** The harness is the only place touching DOM
+globals, so it is the only place that gets `lib: DOM`, via `tsconfig.test.json`. The main config
+**excludes** the harness and stays `lib: ES2022` — extension-host code has no DOM at runtime, and
+compiling it against DOM types would **turn a runtime crash into a silent pass**. `typecheck` runs both.
+
+> **This is the realised cost of M2's decision to ship webview scripts as plain JavaScript.** That
+> decision predicted DOM-lib friction; this is it — **paid once, in the narrowest possible place.** A
+> prediction that came true and was contained is worth keeping as precedent for the next one.
+
+**3. `happy-dom`** — devDependency of `vousoir-core`, **8 packages** (269 → 277), chosen over jsdom on
+transitive count. Nothing shipped depends on it; the extension bundle is unchanged. The framing worth
+keeping: **8 packages to cross a rendering gap three milestones deep is proportionate; 75 would not
+have been** — the comparison being M6's MCP SDK (D13).
+
 ### M3 — Per-node spec panel
 
-**Creates:** `extensions/vousoir-core/src/canvas/spec-panel/`, frontmatter read/write wired to the M1
-store.
+**Created** (actual, PR #18 — this section predicted the panel *inside* the canvas at
+`src/canvas/spec-panel/`; **it shipped in the sidebar**): `extensions/vousoir-core/src/panel/` —
+`spec-panel-provider.ts`, `spec-panel-html.ts`, `spec-selection.ts` — plus the completeness engine in
+`@vousoir/shared` at `vousoir/shared/src/completeness/spec-completeness.ts`.
+
+**Why the sidebar, and what it costs.** Two webviews in one editor pane would compete for space and
+each script would grow to manage that. In the sidebar each stays small and independent. **The
+consequence:** canvas and panel are now separate webviews, so the selection hop
+**canvas → extension host → panel** crosses the `postMessage` seam twice. That is what
+`spec-selection.ts` exists for; it is not incidental plumbing.
+
 **Acceptance:** select a node → panel shows Behaviour / Contracts / Test Cases; edit and save → the
-node's `.md` changes on disk and only that file; edit the file externally → the canvas reflects it.
-**Risk:** the structural/content split from M2. Also the file watcher — external edits are a stated
-product requirement (`vousoir-technical-spec.md:91`), not a nice-to-have.
+node's `.md` changes on disk **and only that file**; edit the file externally → the panel reflects it.
+**Risk — stated precisely, because the sharp version implies its own fix:** not *"external edits go
+unnoticed"*. It is that **noticing an external edit reloads over an in-progress edit**, destroying
+unsaved work. See the conflict rule below; the mitigation follows directly from framing it this way.
 **Changed by recon:** contracts render as a typed list (`moduleApi | serviceApi | dbSchema`) rather
 than one text box, per ADR-008.
+
+#### Spec completeness — the definition (M3's product decision)
+
+**A node is complete when it has all three of: `behaviour`, at least one contract, at least one test
+case.** Reported **granularly** — `{ isSpecified, satisfied, missing, ratio }` — not as a bare boolean,
+so a badge can say *what* is absent rather than only that something is.
+
+Two properties are **enforced by tests, not convention**:
+
+- **Derived from content, never from `status`.** A test asserts every `status` value is ignored.
+  `status` is a user's *claim*; completeness is a *fact about the file*. Conflating them would let a
+  node mark itself complete.
+- **The result carries no `built` / `verified` field**, also asserted by test — so a future edit cannot
+  quietly extend completeness into territory that belongs to **open question 11** and the deferred
+  ADR-005 `built` question. The absence is load-bearing.
+
+Emptiness is measured **after trimming**: a whitespace-only field is one someone opened and abandoned,
+not one they wrote.
+
+> ### ⚠️ Live product judgement, flagged for the user
+>
+> **Contracts are required of roots and organisational parents too.**
+>
+> **For:** a module declaring no boundary is exactly what this product exists to surface, and exempting
+> parents would hide that on the nodes other modules are **most likely to be composed against**.
+>
+> **Against:** a purely-organisational grouping node — one that exists only to hold children — reads as
+> **incomplete forever**, and no edit short of inventing a contract will clear it.
+>
+> Reversing this is a one-line change to `isSatisfied`. **Not decided here.**
+
+**Rejected alternatives**, kept because each would look reasonable to a future reader: a bare boolean
+(a badge could then say only *"incomplete"*, never *what is missing*); requiring `given`/`when`/`then`
+(ADR-008 deliberately kept them optional — requiring them from a badge would overrule that sideways);
+any quality or length bar on prose (unmeasurable, and it would make the badge an **opinion** rather
+than a fact); counting only typed `contracts[]` (a pre-ADR-008 file is not *less specified* for having
+been written earlier).
+
+#### External-edit conflict: dirty → warn, clean → reload
+
+**If the panel has unsaved edits, warn and do not reload. If it is clean, reload silently.**
+
+The reasoning is the durable part: **the user's unsaved words are the only copy that exists anywhere.**
+The file on disk is already in git and can be re-read at any time. Destroying the irreplaceable side to
+refresh the replaceable one is the wrong trade, and it is the trade a naive watcher makes by default.
+The warning states that edits are kept and offers both exits. M1's self-write suppression means it
+fires **only** on a genuinely external write, not on the panel's own save.
+
+**Also shipped:** behaviour **never migrates** between its two homes and the panel says so in the UI
+(ADR-002 amendment). Save writes **exactly one file** — asserted by byte-comparing every *other* spec
+file across three save scenarios, including a no-op edit that must leave the file byte-identical.
+Optional test-case fields are **omitted when blank**, never written as empty strings. Save is
+**explicit**, never per keystroke.
 
 ### M4 — Work-order compiler
 
@@ -514,15 +695,55 @@ command should warn or refuse. A forward dependency on M3, not an open question.
 
 ### M5 — Dispatch to Claude Code
 
-**Creates:** `extensions/vousoir-core/src/dispatch/` (spawn, stream, status).
-**Acceptance:** dispatch a compiled work order → node status moves `specified → building →
-built|failed`; stdout/stderr stream to the "Vousoir" output channel; `claude` absent from PATH fails
-loudly and leaves status unchanged.
+**Created** (actual, PR #14): the dispatch **engine** in `vousoir/shared/src/dispatch/` —
+`claude-cli.ts`, `dispatch-work-order.ts`, `claude-stream-mapper.ts`, `trace-writer.ts`. The extension
+holds only `extensions/vousoir-core/src/dispatch/build-with-claude-command.ts`, the command that needs
+the editor.
+**Acceptance:** dispatch a compiled work order → transient run status moves `idle → running →
+done|failed`; stdout/stderr stream to the "Vousoir" output channel; `claude` absent from PATH fails
+loudly with an actionable message; a JSONL trace lands under `.vousoir/traces/`.
 **Risk:** **`ELECTRON_RUN_AS_NODE`** — no plain-Node test catches its absence. Second: `--permission-mode
 acceptEdits` writes to the user's workspace (per-run worktree isolation is post-M6). Warn in the UI
 before the first dispatch.
 **Changed by recon:** no IPC service and no shared-process work — the extension host is already Node
 (ADR-005). Removes an entire subsystem from the original design.
+
+**The engine lives in `@vousoir/shared`, not the extension — and this is a general rule.**
+
+> **The original reason expired; the rule did not.** Through M5 this was argued as *"the extension has
+> no test runner, so anything testable must live in `shared`"*. **That is no longer true** — the M2
+> smoke harness (PR #19) gave `extensions/vousoir-core` vitest + happy-dom, and it now runs 42 tests.
+>
+> **The rule stands on a better argument: reuse.** The MCP server and the editor share **one**
+> `compileWorkOrder`, and one implementation cannot drift from itself. Testability was always a
+> symptom of that; being importable by two consumers is the cause. **The extension keeps only what
+> genuinely needs the editor** — commands, providers, webview wiring — and everything else goes to
+> `@vousoir/shared`. This held for M5 and M6 and still holds.
+
+**Run status is transient — see the ADR-005 amendment.** `DispatchRunStatus` is
+`'idle' | 'running' | 'done' | 'failed'`, in memory and event-only; cancellation settles as `failed`
+with `cancelled: true`, **not** a fifth status. Nothing writes a spec file. Whether a *successful* run
+should persist `built` is deliberately **undecided**.
+
+**Traces reuse `traceEventSchema` unchanged** — it already modelled everything needed. Lines are
+appended **one at a time**, so a crash leaves a readable trace rather than a truncated buffer, and each
+line is **schema-validated before queueing**, so "one valid JSON object per line" is enforced rather
+than hoped for.
+
+> **Known modelling gap, not a defect today.** `traceEventSchema` has no event kind for **raw agent
+> output**, so an unrecognised `stream-json` line becomes `{ type: 'message', role: 'system' }`. That
+> is lossless — nothing is dropped — but `role: 'system'` now does two jobs: genuine harness output,
+> and a line the mapper could not classify. **If M6's trace viewer must tell them apart**, the fix is
+> an additive kind (ADR-008 style, no migration): add a `raw` variant to the discriminated union and
+> map unclassified lines to it. Nothing needs to change before then.
+
+**`ELECTRON_RUN_AS_NODE` is verified three ways**, because no plain-Node test can see its absence —
+under vitest `process.execPath` already *is* node. (1) a pure `claudeSpawnOptions` function reachable
+without spawning, so the options object itself can be asserted on; (2) a test that the var survives
+into the real `spawn` call; (3) the live smoke run.
+
+**The Claude Code VS Code extension path was deliberately skipped.** The CLI path is solid and now
+verified live; a second dispatch path doubles the surface for no capability the primary lacks.
 
 ### M6 — MCP server
 
@@ -537,6 +758,32 @@ scale; do not build a lock. Also `types: []` — MCP payload schemas in `typings
 + zod, and the SDK can never be imported there (`typings-only-imports-zod`).
 **Changed by recon:** stands alone; does **not** extend the service-host protocol, which says of
 itself *"This is NOT MCP"* (ADR-006). Three drafted tool lists merged into one surface of nine.
+
+**Shipped (PR #15) — decisions worth not re-litigating:**
+
+- **No cached tree.** Every call opens the store, reads, and disposes. A cached snapshot would answer
+  **stale** *and* clobber the user's concurrent edit, given ADR-002's last-write-wins posture. The cost
+  is a re-read per call; the alternative is a correctness bug.
+- **Writes go through the M1 `SpecStore`, never straight to disk.** That is what makes a hand-written
+  YAML comment survive an agent changing one field, and it inherits id-uniqueness, parent validation
+  and cycle rejection identically to the editor. Tested.
+- **`get_work_order` calls the same `compileWorkOrder` the editor does**, asserted **byte-identical**
+  against the same golden. The fixture and golden are **exported from `@vousoir/shared`, not copied** —
+  a copy would drift while both tests still passed, which is the failure mode that makes two
+  implementations diverge silently.
+- **Two writers verified end-to-end:** an editor-side watcher fires when the MCP server writes
+  underneath it, and reload picks the change up. That is the DoD path, exercised rather than assumed.
+- **The orchestrator is sequential by default — a decision, not a simplification.** `acceptEdits`
+  writes into the user's workspace and worktree isolation is post-M6, so concurrent siblings produce
+  interleaved edits with no conflict detection and no way to attribute a bad change to a run. A
+  `concurrency` option is exposed for when isolation lands.
+- **Every `OrchestrationResult` carries `integrationTests: 'blocked-on-contract-edges'`** with a
+  readable explanation naming open question 10 — so the gap is visible to anything inspecting a result
+  and **cannot be mistaken for "ran, found nothing"**. Tested.
+- **The DoD live run deliberately avoided `claude mcp add`**, which mutates the user's global CLI
+  config outside the workspace. It used a temp `mcp.json` via `--mcp-config … --strict-mcp-config`,
+  exercising the identical protocol path with nothing to clean up. **Use this pattern for future live
+  verification.**
 **Carries a deadline set 2026-07-24:** `get_contracts` returns a **free-form string** body per contract
 kind (`ADR.md` open question 4). Structuring that body — additively, ADR-008 style — **must land before
 the milestone that builds Feature 6, "Integration Testing Across Modules"**, because agent-run contract
@@ -562,11 +809,15 @@ and converge here. **Settle both before building this milestone, and land them t
 | D3 | **Packaged builds cannot find service-host** (`PATCHES.md` L1) | Dev builds only. Extension logs a clear diagnostic and degrades gracefully. | Deferred — needs a `build/gulpfile.vscode.*` core patch. |
 | D4 | **Services spawned as raw `.ts`** relying on Node 24 type stripping (`PATCHES.md` A2, open risk) | Electron 42.6.0's bundled Node may differ; stripping only supports erasable syntax. | Fallback: esbuild service entries to `.js`. |
 | D5 | ~~**No YAML dependency** anywhere in the Vousoir layer (`PATCHES.md` D7)~~ | — | **CLOSED by M1** (PR #12): `yaml@2.9.0`. The JSON frontmatter goldens were kept; a real `.md` tree fixture was added beside them. |
-| D9 | **`vousoir/PATCHES.md:63` and `vousoir/HANDOFF.md:183` still say `.v6r/`** | Looks like a missed rename. It is not. | **Ruled 2026-07-24: leave them.** Both are historical records — a ledger row describing a past README rewrite, and a completed acceptance-test checklist. They accurately describe what was true when written, and rewriting a record of the past to match the present is how a ledger stops being trustworthy. **Do not "fix" these.** |
-| D10 | **`vousoir-technical-spec.md:93` permits a contract leak, read literally** | It specifies the work-order output as *"spec + contracts + tests + neighbor/ancestor context"* **without saying whose**. Read literally that allows emitting a neighbour's test cases — precisely the leak the product must not have. The code does the right thing; the spec does not say so. | **The user must make this edit — do not edit that file.** One clause fixes it: *"…the node's **own** spec, contracts and tests, plus neighbour/ancestor context as **contracts only**."* Same standing as Feature 3 (R9): a user-owned product document that the ADRs cannot amend. |
 | D6 | **`launch` skill is stale and Windows-hostile** | Cannot be used here. References deleted `agentHost`. | Use `scripts/code.bat`. Rewrite the skill or delete it. |
 | D7 | `CONTRIBUTING.md:116` still states the retired ≤15-patch budget | Contradicts `PATCHES.md:14`. Misleads readers. | One-line fix. |
 | D8 | Deferred residue from the AI excision (`PATCHES.md:101-106`) | Dead but compiling: AI-search type surface, `_chatExtensionId`, three orphaned dirs. | Tracked in `DEAI-PROGRESS.md`. |
+| D9 | **`vousoir/PATCHES.md:63` and `vousoir/HANDOFF.md:183` still say `.v6r/`** | Looks like a missed rename. It is not. | **Ruled 2026-07-24: leave them.** Both are historical records — a ledger row describing a past README rewrite, and a completed acceptance-test checklist. They accurately describe what was true when written, and rewriting a record of the past to match the present is how a ledger stops being trustworthy. **Do not "fix" these.** |
+| D10 | **`vousoir-technical-spec.md:93` permits a contract leak, read literally** | It specifies the work-order output as *"spec + contracts + tests + neighbor/ancestor context"* **without saying whose**. Read literally that allows emitting a neighbour's test cases — precisely the leak the product must not have. The code does the right thing; the spec does not say so. | **The user must make this edit — do not edit that file.** One clause fixes it: *"…the node's **own** spec, contracts and tests, plus neighbour/ancestor context as **contracts only**."* Same standing as Feature 3 (R9): a user-owned product document that the ADRs cannot amend. |
+| D11 | **Cancellation kills the direct child only** | If `claude` spawns grandchildren that survive the parent's `SIGKILL`, they are not reaped and keep writing to the user's workspace after the run reads as cancelled. | Process-group kill (`taskkill /T` on Windows, `kill(-pgid)` elsewhere). **Deliberately not built:** the failure could not be observed, and guessing at process-tree semantics is how you ship a killer that kills the wrong thing. Build it when it is reproducible. |
+| D12 | **`--verbose` is required by Claude CLI 2.1.219** alongside `--print --output-format stream-json` | A version coupling. If a future CLI drops the requirement the flag is harmless — but if the *contract* changes, the symptom is an **empty trace**, which does not point at its own cause. | Findable here when someone upgrades the CLI and traces go empty. Re-check the flag combination against `claude --help` at that point. |
+| D13 | **The MCP SDK pulls ~75 transitive packages**, including an Express path this stdio server never touches | The Vousoir layer's dependency surface roughly **doubled in one install**. Not a defect — but ADR-003 argued that the real cost of a dependency here is the shared `vousoir/pnpm-lock.yaml` and the surface it adds, and **that argument now cuts against a dependency we accepted**. Recorded because the inconsistency is the point. | Revisit if the surface becomes a problem: the server speaks stdio JSON-RPC and needs none of the HTTP transport. A hand-rolled stdio transport is plausible but is not worth doing on speculation. |
+| D14 | **Husky pre-commit hygiene rejects curly apostrophes — and reads the git *index*, not the working tree** | A fix applied to the file does nothing until it is **re-staged**, so the same error repeats and looks like the fix failed. Cheap to record, annoying to rediscover. | Use straight quotes in source. After fixing a hygiene failure, `git add` the file again **before** re-committing. |
 
 ---
 
@@ -574,16 +825,16 @@ and converge here. **Settle both before building this milestone, and land them t
 
 | # | Risk | Mitigation |
 |---|---|---|
-| R1 | **Layout thrash in M2/M3** — spec-text edits re-run layout on every keystroke | Single mutation classifier; only `structural` reaches layout. Keep `layout.ts` a pure function with direct tests. Highest-probability failure in the plan. |
+| R1 | ~~**Layout thrash in M2/M3** — spec-text edits re-run layout on every keystroke~~ | **VOID since the ADR-003 amendment (2026-07-24).** Layout runs **on command**, not on mutation, so no mutation can trigger a re-layout and no classifier exists to get wrong. **Do not build the `structural \| content` classifier.** A second-order consequence of the manual-placement ruling: it retired what these docs called the plan's highest-probability failure. |
 | R2 | **Missing `ELECTRON_RUN_AS_NODE` in M5** — silently launches an Electron instance; no plain-Node test can catch it | Assert the env var in the spawn options in a unit test **and** verify once by hand in the real shell (`PATCHES.md:276`). |
 | R3 | **ADR-003 overrules a made Stage 3 decision** (React Flow + ELK) | **Approved 2026-07-24 with a revisit trigger**: contract links create cross-edges the strict-tree argument does not cover, so reconsider a routing library once the canvas renders contract edges *and* hand-rolled routing is ugly — not before. Still reversible behind the same pure-function signature. |
-| R9 | **Feature 3 is stale and says the opposite of ADR-003** — it forbids a manual "clean up" action (`vousoir-source-of-truth.md:86`); the 2026-07-24 ruling requires exactly that | Follow the ADR-003 amendment, not Feature 3. `vousoir-source-of-truth.md` needs its author's edit; until then the two documents disagree and the ADR is operative. |
-| R10 | **Contracts have no edges** — `specNodeContractSchema` has no target reference, so M4's "contracted neighbours" is a structural approximation and M6's sibling contract tests have no provider/consumer pair | `ADR.md` open question 10, lean B (optional `provider`/`consumes`, additive). Must settle before M6, alongside the contract-body structuring — they are one prerequisite in two halves. M4's approximation is marked in code and is too broad *and* too narrow. |
 | R4 | ~~**Work-order scope is unresolved** and gates M4's correctness~~ | **RESOLVED 2026-07-24.** Three tiers, specified in §6 M4. Residual risk is implementation, not scope: tier-3 leakage of neighbour internals. Test for absence. |
 | R5 | ~~**`*.v6r` filename collides with the `.v6r/` directory**~~ | **RESOLVED 2026-07-24** by renaming the directory to `.vousoir/` (ADR-002 amendment). The manifest keeps its `*.v6r` extension; one name now means one thing, so no `filenamePattern` stem rule is needed. Lands with M1, before any user repo contains either. |
 | R6 | **Worktree dependency drift** — two branches, one `node_modules` | Any lockfile change is stop-the-world. Re-verify both branches. |
 | R7 | **Two writers to `.vousoir/spec/`** in M6 (canvas + MCP) | Plain files, per-file last-write-wins, file watcher on the canvas side. No lock. |
 | R8 | **Schema fork** — a second model type shadowing `@vousoir/typings` | ADR-008 forbids it. Note `PATCHES.md` A3: dependency-cruiser **cannot** catch duplicate declarations — this is a review rule, so it needs human attention on every PR. |
+| R9 | **Feature 3 is stale and says the opposite of ADR-003** — it forbids a manual "clean up" action (`vousoir-source-of-truth.md:86`); the 2026-07-24 ruling requires exactly that | Follow the ADR-003 amendment, not Feature 3. `vousoir-source-of-truth.md` needs its author's edit; until then the two documents disagree and the ADR is operative. |
+| R10 | **Contracts have no edges** — `specNodeContractSchema` has no target reference, so M4's "contracted neighbours" is a structural approximation and M6's sibling contract tests have no provider/consumer pair | `ADR.md` open question 10, lean B (optional `provider`/`consumes`, additive). Must settle before M6, alongside the contract-body structuring — they are one prerequisite in two halves. M4's approximation is marked in code and is too broad *and* too narrow. |
 
 ---
 
