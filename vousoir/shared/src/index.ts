@@ -54,3 +54,9 @@ export { orchestrateSubtree, INTEGRATION_TESTS_BLOCKED_DETAIL } from './orchestr
 export type { OrchestrateSubtreeOptions, OrchestrationDispatch } from './orchestrate/orchestrate-subtree.ts';
 export { TraceWriter } from './dispatch/trace-writer.ts';
 export type { TraceEventBody } from './dispatch/trace-writer.ts';
+
+// Canvas layout (M2). `layoutSpecTree` is a pure function so it can be tested directly;
+// everything else on the canvas sits behind a postMessage seam.
+export { layoutSpecTree, LAYOUT_METRICS } from './layout/layout-spec-tree.ts';
+export type { LayoutOptions } from './layout/layout-spec-tree.ts';
+export { clearedLayout, emptyLayout, layoutFilePath, loadLayout, saveLayout, withPosition } from './layout/layout-store.ts';
