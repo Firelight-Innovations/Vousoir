@@ -42,7 +42,7 @@ budget. `max-lines-per-function` warns at 80 for the same reason.
 
 ### Types live in `@vousoir/typings`
 
-Every cross-package data shape — service manifests, trace events, spec frontmatter, `.v6r`
+Every cross-package data shape — service manifests, trace events, spec frontmatter, `.vousoir`
 layout, future MCP tool payloads — is defined in `typings/vousoir` and imported everywhere else.
 **No package redeclares a shared shape locally.**
 
