@@ -79,11 +79,17 @@ module.exports = {
 			name: 'no-orphans',
 			comment:
 				'§7.1: no orphan modules (files nothing imports) — dead code fails CI. Package public entry points ' +
-				'(index.ts / extension.ts) and type-declaration files are exempt: they are surfaces, not dead code.',
+				'(index.ts / extension.ts), type-declaration files, and webview assets under a vousoir extension\'s ' +
+				'media/ folder are exempt: they are surfaces, not dead code.',
 			severity: 'error',
 			from: {
 				orphan: true,
-				pathNot: ['(^|/)index\\.ts$', '(^|/)extension\\.ts$', '\\.d\\.ts$'],
+				// `extensions/vousoir-*/media/**` is the same category as extension.ts: an entry
+				// point the runtime loads rather than a module anything imports. A webview script
+				// is fetched by URL through `asWebviewUri` (ADR-004), so it can never have an
+				// incoming import edge — flagging it as dead code is a misclassification, not a
+				// boundary breach. This exempts one file class; it relaxes no boundary rule.
+				pathNot: ['(^|/)index\\.ts$', '(^|/)extension\\.ts$', '\\.d\\.ts$', '^extensions/vousoir-[^/]+/media/'],
 			},
 			to: {},
 		},

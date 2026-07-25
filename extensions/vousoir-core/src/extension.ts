@@ -18,6 +18,7 @@ import { startServiceHost } from './service-host/service-host-manager.ts';
 import { registerCompileWorkOrderCommand } from './work-order/compile-work-order-command.ts';
 import { registerBuildWithClaudeCommand } from './dispatch/build-with-claude-command.ts';
 import { registerShowMcpRegistrationCommand } from './mcp/show-mcp-registration-command.ts';
+import { registerCanvasEditor } from './canvas/v6r-canvas-provider.ts';
 
 // Module-scoped so `deactivate()` can await disposal directly - the extension host awaits the
 // promise `deactivate()` returns, which `context.subscriptions` disposal alone does not guarantee
@@ -45,6 +46,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 	// The MCP server is launched by an external `claude`, not by us (ADR-006) — this only
 	// prints the registration line the user pastes into a terminal.
 	context.subscriptions.push(registerShowMcpRegistrationCommand(log, context.extensionUri));
+
+	// The canvas custom editor, bound to *.v6r (ADR-001). The manifest is a pointer; the
+	// model it points at is the markdown tree under .vousoir/spec/.
+	context.subscriptions.push(registerCanvasEditor(context, log));
 
 	serviceHostHandle = await startServiceHost(vscode.env.appRoot, log);
 	context.subscriptions.push({

@@ -1,0 +1,114 @@
+/*
+ * Canvas styling. Ships as a real extension file loaded through `asWebviewUri` (ADR-004) —
+ * no CDN, no remote font. Every colour is a VS Code theme variable, so the canvas follows
+ * the user's theme instead of inventing its own palette.
+ */
+
+* {
+	box-sizing: border-box;
+}
+
+html,
+body {
+	height: 100%;
+	margin: 0;
+	padding: 0;
+	overflow: hidden;
+	font-family: var(--vscode-font-family);
+	font-size: var(--vscode-font-size);
+	color: var(--vscode-foreground);
+	background: var(--vscode-editor-background);
+}
+
+#v6r-toolbar {
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	height: 32px;
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 0 12px;
+	background: var(--vscode-editorWidget-background);
+	border-bottom: 1px solid var(--vscode-editorWidget-border, transparent);
+	z-index: 2;
+}
+
+#v6r-project {
+	font-weight: 600;
+}
+
+#v6r-hint {
+	opacity: 0.6;
+	font-size: 0.9em;
+}
+
+#v6r-viewport {
+	position: absolute;
+	inset: 32px 0 0 0;
+	overflow: hidden;
+	cursor: grab;
+}
+
+#v6r-viewport.v6r-panning {
+	cursor: grabbing;
+}
+
+#v6r-surface {
+	position: absolute;
+	transform-origin: 0 0;
+}
+
+.v6r-node {
+	position: absolute;
+	border: 1px solid var(--vscode-panel-border, var(--vscode-contrastBorder, #8884));
+	border-radius: 6px;
+	background: var(--vscode-editorWidget-background);
+	overflow: hidden;
+}
+
+/* Depth is shown by tint, not border style: at low zoom a 1px border difference vanishes. */
+.v6r-node[data-depth='0'] {
+	background: var(--vscode-editor-background);
+}
+
+.v6r-node[data-depth='1'] {
+	background: var(--vscode-editorWidget-background);
+}
+
+.v6r-node[data-depth='2'] {
+	background: var(--vscode-editorHoverWidget-background, var(--vscode-editorWidget-background));
+}
+
+.v6r-node.v6r-manual {
+	border-style: dashed;
+}
+
+.v6r-node-title {
+	display: block;
+	padding: 8px 10px 0;
+	font-weight: 600;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.v6r-node-status {
+	display: block;
+	padding: 2px 10px;
+	font-size: 0.85em;
+	opacity: 0.7;
+}
+
+#v6r-empty {
+	position: absolute;
+	inset: 32px 0 0 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 24px;
+	text-align: center;
+	white-space: pre-wrap;
+	opacity: 0.8;
+}

@@ -55,7 +55,19 @@
           "type": "webview"
         }
       ]
-    }
+    },
+    "customEditors": [
+      {
+        "viewType": "vousoir.canvas",
+        "displayName": "Vousoir Canvas",
+        "priority": "default",
+        "selector": [
+          {
+            "filenamePattern": "*.v6r"
+          }
+        ]
+      }
+    ]
   },
   "scripts": {
     "compile": "node esbuild.mts",
