@@ -2,19 +2,38 @@
 
 Updated after every milestone. Docs: [`ADR.md`](./ADR.md) (why) · [`ARCHITECTURE.md`](./ARCHITECTURE.md) (how and where).
 
-**Gate for every milestone:** `cd vousoir; pnpm run verify` green. Currently 22 tests, exit 0.
+**Gate for every milestone:** `cd vousoir; pnpm run verify` green. **212 tests, exit 0** at M3.
+
+**All seven milestones are through.** ⚠️ **But no Vousoir UI has ever been rendered** — see M2/M3
+below; that is the one outstanding item before this can be called done.
 
 ## Milestones
 
+Listed in milestone order. **Note the branches are a stacked PR chain, merged bottom-up:**
+`m0-recon` → `m1-model` → `m4-compiler` → `m5-dispatch` → `m6-mcp` → `m2-canvas` → `m3-panel`. Build
+order was not milestone order — M4/M5/M6 shipped before M2/M3.
+
 | Milestone | Status | Branch | PR | Notes |
 |---|---|---|---|---|
-| **M0 — Recon** | ✅ Complete | `v6r/m0-recon` | *(see PR)* | 8 ADRs + architecture map + this tracker. Docs only, no feature code. Verified every citation against the tree; 4 briefed claims were wrong (see PR body). |
-| **M1 — Model + spec store** | ⬜ Pending | — | — | Extend `specNodeFrontmatterSchema` in place (ADR-008): typed `contracts[]`, optional given/when/then. Brings the first YAML dependency. |
-| **M2 — Canvas editor + auto-layout** | ⚠️ **Code complete — canvas never rendered** | `v6r/m2-canvas` | [#17](https://github.com/Firelight-Innovations/Vousoir/pull/17) | `CustomTextEditorProvider` on `*.v6r`; layout engine in `@vousoir/shared` (26 tests). Manual placement + auto-tidy per the ADR-003 amendment; positions in `.vousoir/layout.json`. **All seven canvas interactions typecheck, lint and bundle but have NEVER been exercised by a browser or a human** — the webview script, the CSP and `asWebviewUri` resolution are unverified. **Needs a human to launch `scripts/code.bat` and open a `*.v6r` file. Do not call the canvas working until then.** |
-| **M3 — Per-node spec panel** | ⬜ Pending | — | — | Behaviour / Contracts / Test Cases; writes one `.md` per node. Needs the external-edit watcher. |
-| **M4 — Work-order compiler** | ⬜ Pending | — | — | **Unblocked 2026-07-24.** Scope settled: node's full spec + ancestors' **behaviour summaries** + contracted neighbours' **contract blocks only, never internals**. Spec in ARCHITECTURE.md §6 M4. |
-| **M5 — Dispatch to Claude Code** | ⬜ Pending | — | — | `child_process` from the extension host (ADR-005). `ELECTRON_RUN_AS_NODE=1` mandatory. |
-| **M6 — Orchestration + MCP server** | ⬜ Pending | — | — | Standalone `vousoir/services/spec-mcp/` (ADR-006). Nine tools. |
+| **M0 — Recon** | ✅ Complete | `v6r/m0-recon` | [#11](https://github.com/Firelight-Innovations/Vousoir/pull/11) | 8 ADRs + architecture map + this tracker. Docs only. Every citation verified against the tree; 4 briefed claims were wrong. Amended throughout M1–M6 as shipped code corrected it — 13 doc defects found and fixed. |
+| **M1 — Model + spec store** | ✅ Complete | `v6r/m1-model` | [#12](https://github.com/Firelight-Innovations/Vousoir/pull/12) | Schema extended in place (ADR-008): typed `contracts[]`, optional given/when/then, scalar `contract` kept. `SpecStore` in `@vousoir/shared` — load/save/CRUD/nest/watch, byte-identical round trip. Brought `yaml@2.9.0` (closes D5/D7). Carried the `.v6r/` → `.vousoir/` rename into code. 22 → 66 tests. |
+| **M2 — Canvas editor + auto-layout** | ⚠️ **Code complete — never rendered** | `v6r/m2-canvas` | [#17](https://github.com/Firelight-Innovations/Vousoir/pull/17) | `CustomTextEditorProvider` on `*.v6r`; layout engine in `@vousoir/shared` (26 tests). Manual placement + auto-tidy (ADR-003 amendment); positions in `.vousoir/layout.json`. Every structural edit routes through the M1 store. **All seven interactions typecheck, lint and bundle but have NEVER been exercised by a browser or a human.** 144 → 187 tests. |
+| **M3 — Per-node spec panel** | ⚠️ **Code complete — never rendered, gated on M2** | `v6r/m3-panel` | [#18](https://github.com/Firelight-Innovations/Vousoir/pull/18) | Sidebar webview, not inside the canvas. Spec completeness = behaviour + ≥1 contract + ≥1 test case, derived from content never `status`. External edit: dirty → warn, clean → reload. Save writes exactly one file. **Driven by canvas selection, so if the canvas is blank nothing here is reachable either.** 187 → 212 tests. |
+| **M4 — Work-order compiler** | ✅ Complete | `v6r/m4-compiler` | [#13](https://github.com/Firelight-Innovations/Vousoir/pull/13) | Settled scope: node's full spec + ancestors' **behaviour summaries** + neighbours' **contract blocks only, never internals**. Pure `compileWorkOrder`, separate `writeWorkOrder` to `.vousoir/cache/work-orders/`. Leak prevention is structural — the context types cannot hold a neighbour's internals. Neighbours are a structural approximation pending open question 10. 66 → 93 tests. |
+| **M5 — Dispatch to Claude Code** | ✅ Complete | `v6r/m5-dispatch` | [#14](https://github.com/Firelight-Innovations/Vousoir/pull/14) | Engine in `@vousoir/shared`; the extension keeps only the command. Work order to **stdin**, never argv. Transient run status, nothing writes a spec file. JSONL traces reuse `traceEventSchema`. `ELECTRON_RUN_AS_NODE` verified three ways. 93 → 112 tests. |
+| **M6 — Orchestration + MCP server** | ✅ Complete | `v6r/m6-mcp` | [#15](https://github.com/Firelight-Innovations/Vousoir/pull/15) | Standalone `vousoir/services/spec-mcp/`, nine tools, no cached tree, writes through the M1 store. `get_work_order` byte-identical to the editor's. Sequential orchestrator by design. Live MCP demo verified. 112 → 144 tests. |
+
+### ⚠️ The one thing outstanding
+
+**No Vousoir UI has ever been rendered.** M2's canvas and M3's panel both typecheck, lint and bundle;
+neither has been seen by a browser or a human. **They compound:** the panel is driven by canvas
+selection, so a blank canvas hides both. **One human session validates both** — launch
+`scripts/code.bat`, open a `*.v6r` file, confirm nodes render, select one, confirm the panel populates.
+
+A static pre-flight narrows the risk without closing it: all four media assets exist, both providers
+genuinely *set* `localResourceRoots`, the CSP is `default-src 'none'` with a per-render nonce, and
+`customEditors` contributes `vousoir.canvas` on `*.v6r`. **212 passing tests say the engines are
+correct; they say nothing about whether anything appears on screen.**
 
 ## Decision log
 
@@ -56,6 +75,9 @@ Updated after every milestone. Docs: [`ADR.md`](./ADR.md) (why) · [`ARCHITECTUR
 | 2026-07-24 | **The dispatch engine lives in `@vousoir/shared`, not the extension** — `vousoir-core` has no test runner and cannot cheaply get one while it imports `vscode`, so a dispatcher there would be untestable and the gate meaningless. **General rule: the extension keeps only what needs the editor. Applies to M6** | ARCHITECTURE.md §6 M5 |
 | 2026-07-24 | **Traces reuse `traceEventSchema` unchanged**; lines appended one at a time so a crash leaves a readable trace, each schema-validated *before* queueing | ARCHITECTURE.md §6 M5 |
 | 2026-07-24 | **`ELECTRON_RUN_AS_NODE` verified three ways** — pure options function, a test that it survives into the real `spawn`, and the live smoke run. No plain-Node test can see its absence | ARCHITECTURE.md §6 M5 |
+| 2026-07-24 | **Spec completeness = `behaviour` + ≥1 contract + ≥1 test case**, reported granularly (`satisfied`/`missing`/`ratio`) so a badge can say *what* is absent. **Derived from content, never from `status`** — `status` is a claim, completeness is a fact — and the result deliberately carries **no `built`/`verified` field**, both asserted by test. ⚠️ **Contracts are required of roots and organisational parents too — flagged for the user as reversible** | ARCHITECTURE.md §6 M3 |
+| 2026-07-24 | **External edit while the panel is dirty: warn, do not reload; clean: reload silently** — unsaved words are the only copy that exists anywhere, while the file on disk is already in git and re-readable. Destroying the irreplaceable side to refresh the replaceable one is the wrong trade | ARCHITECTURE.md §6 M3 |
+| 2026-07-24 | **The spec panel is a sidebar webview, not inside the canvas** — two webviews in one pane would compete for space. Consequence: selection crosses the `postMessage` seam twice via `spec-selection.ts` | ARCHITECTURE.md §6 M3 |
 | 2026-07-24 | **Every structural canvas edit routes through the M1 `SpecStore`** — delete re-parents orphans to the grandparent and refuses roots, re-parent refuses cycles. **The canvas invents no rules**, so the canvas and MCP enforce one rule set rather than two that drift. The most consequential M2 decision | ARCHITECTURE.md §6 M2 |
 | 2026-07-24 | **Auto-tidy is a thin wrapper over placement-clearing, not a second layout path** — a test asserts a cleared placement lands the node byte-identically where auto-layout would. **Nothing but Tidy clears placements**, which is how "auto-layout never silently overrides" is enforced structurally rather than by discipline | ARCHITECTURE.md §6 M2 |
 | 2026-07-24 | **`CustomTextEditorProvider`, not the full `CustomEditorProvider` ADR-001 sketched** — the `*.v6r` manifest genuinely *is* a text document, so the framework owns dirty state, save and revert. The model lives in `.vousoir/spec/`, not that document | ARCHITECTURE.md §4 |
