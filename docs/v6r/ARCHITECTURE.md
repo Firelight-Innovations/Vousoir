@@ -102,7 +102,7 @@ wastes minutes or reports a failure you did not cause.
 | You changed | Run | Measured |
 |---|---|---|
 | `extensions/vousoir-core/**` — **the M2/M3/M5 inner loop** | `cd extensions/vousoir-core; node --experimental-strip-types ./esbuild.mts` | exit 0, **0.28 s** |
-| Anything in the Vousoir layer — **the gate before every commit** | `cd vousoir; pnpm run verify` | exit 0, **212 tests** at M3 (22 at recon) |
+| Anything in the Vousoir layer — **the gate before every commit** | `cd vousoir; pnpm run verify` | exit 0, **254 tests** (22 at recon; 212 at M3; 254 with the smoke harness) |
 | `src/` (core) | `npm run typecheck-client` | exit 0, **6.48 s** |
 | All built-in extensions | `npm run gulp compile-extensions` | **BROKEN — see below** |
 | Run the app | `scripts/code.bat` | Windows |
@@ -456,8 +456,7 @@ rename in M1 is what keeps M2 from having to migrate a directory that already ex
 **Created** (actual, PR #17 — this section predicted the layout engine in the extension and a second
 esbuild entry; **both were wrong**): the layout engine is in **`@vousoir/shared`** —
 `vousoir/shared/src/layout/layout-spec-tree.ts` and `layout-store.ts` — as a pure function, which is
-exactly **why it has 26 tests**: the extension has no test runner, so anything testable belongs in
-`shared` (the same rule M5 established). The extension holds only
+exactly **why it has 26 tests** — see the placement rule below. The extension holds only
 `extensions/vousoir-core/src/canvas/` — `v6r-canvas-provider.ts`, `canvas-html.ts`,
 `canvas-mutations.ts` — plus `media/canvas.{js,css}`. **No second esbuild entry exists**: the webview
 imports no modules, so `esbuild.mts` still has the single `extension` entry point.
@@ -495,26 +494,69 @@ auto-tidy command that **must never silently override a user's placement**. This
 `vousoir-source-of-truth.md:86` (Feature 3), which says auto-layout *"has to work invisibly, not be a
 separate 'clean up' action"*. **Do not implement Feature 3 as written** — see the ADR-003 amendment.
 
-> ### ⚠️ No Vousoir UI has ever been rendered — M2 and M3 stack
+> ### ⚠️ Still needs a human launch — but the remaining risk is now specific
 >
-> **M2's canvas:** all seven interactions — pan, zoom, create, rename, delete, drag-to-nest, drill-in,
-> tidy — typecheck, lint and bundle, and have **never been exercised by a browser or a human.**
+> **What the smoke harness does exercise** (PR #19, 42 tests in `vousoir-core` under vitest +
+> happy-dom): it loads the **actual** `media/canvas.js` and `media/spec-panel.js` off disk into HTML
+> from the **actual** builders, driven by **actual** `layoutSpecTree` output. **The render path and the
+> message protocol in both directions are exercised.** This is no longer "never run by anything".
 >
-> **M3's panel is gated on it, not merely also-pending.** The panel is driven by canvas selection. **If
-> the canvas is blank, no selection ever reaches the panel, so nothing in M3 is reachable either.** The
-> two failures compound: one blank webview hides both milestones' UI.
+> **What it cannot prove — and this is the single most likely remaining failure: the CSP.** happy-dom
+> **does not enforce it**, so a script blocked by a bad nonce or a missing `localResourceRoots` entry
+> passes here and fails in Electron. **If the canvas is blank, check the CSP first.**
 >
-> **One human session validates both.** Launch the dev build (`scripts/code.bat`), open a `*.v6r` file,
-> confirm nodes render, then select one and confirm the panel populates.
+> Also unproven: `asWebviewUri` resolution; real layout and painting (no box model —
+> `getBoundingClientRect` is stubbed); and true pointer semantics.
 >
-> **A static pre-flight has narrowed the risk — it does not close it.** Verified: all four media assets
-> exist on disk; **both** providers genuinely *set* `localResourceRoots` rather than merely documenting
-> it; the CSP is `default-src 'none'` with a per-render nonce on the script tag; and `customEditors`
-> contributes `vousoir.canvas` on `*.v6r`. That is the likeliest failure mode checked off. It is not
-> proof of rendering.
+> **M3's panel is gated on M2, not merely also-pending.** The panel is driven by canvas selection, so
+> if the canvas is blank no selection ever reaches it and nothing in M3 is reachable either.
+> **One human session validates both:** launch `scripts/code.bat`, open a `*.v6r` file, confirm nodes
+> render, select one, confirm the panel populates.
 >
-> **Until a human has looked, do not describe the canvas or the panel as working.** 212 passing tests
-> say the engines are correct; they say nothing about whether anything appears on screen.
+> A static pre-flight also holds: all four media assets exist on disk, both providers genuinely *set*
+> `localResourceRoots`, the CSP is `default-src 'none'` with a per-render nonce, and `customEditors`
+> contributes `vousoir.canvas` on `*.v6r`.
+
+#### The smoke harness found a real bug — which is the argument for its existence
+
+**`dropTargetAt`'s comment claimed it ignored *"the one being dragged and its own subtree"*. The code
+only skipped the dragged node.** Dragging a module onto its own child therefore proposed a
+guaranteed-cycle re-parent. **Nothing could corrupt** — the M1 store refuses cycles — but a natural
+gesture bounced off an error instead of doing the obvious thing, since dragging a parent onto a child
+you can see inside it is a **placement, not a mistake**. The test was written to assert intended
+behaviour, **watched to fail**, then the code fixed to match its own comment.
+
+**The general lesson: this was a comment/code divergence in a file nothing executed.** No amount of
+reading catches that — the comment reads as a specification and the code reads as plausible, and only
+running it disagrees. That is what the harness is for.
+
+#### Two config changes, and one dependency
+
+**1. `ext-imports-only-typings-and-shared` gained a `node_modules/` exclusion — the second such
+exemption, and it is the same shape as the first.** The pnpm workspace root **is** `vousoir/`, so every
+third-party package an extension depends on resolves to a path under `vousoir/` — meaning a
+devDependency like vitest read as a Vousoir-layer import. **The rule governs which *source* packages an
+extension may reach into**, and it was written before any extension had a dependency of its own, so
+**the false positive was latent, not introduced.** All 8 rules intact; `from` untouched; no source
+boundary relaxed. **Do not read this as a weakened wall** — see also the `no-orphans` `media/`
+exemption in §2; both are misclassification fixes for a path class, and they should be found together.
+
+*Rejected:* moving the harness under `vousoir/` — that would have made the Vousoir layer read extension
+files, which is backwards.
+
+**2. tsconfig split, to preserve the no-DOM guarantee.** The harness is the only place touching DOM
+globals, so it is the only place that gets `lib: DOM`, via `tsconfig.test.json`. The main config
+**excludes** the harness and stays `lib: ES2022` — extension-host code has no DOM at runtime, and
+compiling it against DOM types would **turn a runtime crash into a silent pass**. `typecheck` runs both.
+
+> **This is the realised cost of M2's decision to ship webview scripts as plain JavaScript.** That
+> decision predicted DOM-lib friction; this is it — **paid once, in the narrowest possible place.** A
+> prediction that came true and was contained is worth keeping as precedent for the next one.
+
+**3. `happy-dom`** — devDependency of `vousoir-core`, **8 packages** (269 → 277), chosen over jsdom on
+transitive count. Nothing shipped depends on it; the extension bundle is unchanged. The framing worth
+keeping: **8 packages to cross a rendering gap three milestones deep is proportionate; 75 would not
+have been** — the comparison being M6's MCP SDK (D13).
 
 ### M3 — Per-node spec panel
 
@@ -667,10 +709,16 @@ before the first dispatch.
 (ADR-005). Removes an entire subsystem from the original design.
 
 **The engine lives in `@vousoir/shared`, not the extension — and this is a general rule.**
-`extensions/vousoir-core` has **no test runner**, and cannot cheaply get one while it imports `vscode`.
-A dispatcher built there would be untestable, which would make the milestone gate meaningless. **The
-extension keeps only what genuinely needs the editor**; everything else goes to `@vousoir/shared` where
-it can be tested. **This applies to M6 too.**
+
+> **The original reason expired; the rule did not.** Through M5 this was argued as *"the extension has
+> no test runner, so anything testable must live in `shared`"*. **That is no longer true** — the M2
+> smoke harness (PR #19) gave `extensions/vousoir-core` vitest + happy-dom, and it now runs 42 tests.
+>
+> **The rule stands on a better argument: reuse.** The MCP server and the editor share **one**
+> `compileWorkOrder`, and one implementation cannot drift from itself. Testability was always a
+> symptom of that; being importable by two consumers is the cause. **The extension keeps only what
+> genuinely needs the editor** — commands, providers, webview wiring — and everything else goes to
+> `@vousoir/shared`. This held for M5 and M6 and still holds.
 
 **Run status is transient — see the ADR-005 amendment.** `DispatchRunStatus` is
 `'idle' | 'running' | 'done' | 'failed'`, in memory and event-only; cancellation settles as `failed`
