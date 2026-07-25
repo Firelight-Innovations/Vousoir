@@ -591,10 +591,17 @@ serves. The milestone brief's `position` field is therefore **dropped from the M
 - One less dependency in `vousoir/pnpm-lock.yaml`, and no React/React Flow runtime in the webview for
   M2 — plain DOM or SVG is sufficient for nested boxes.
 - The layout function is the most testable unit on the canvas. Treat its tests as the M2 safety net.
-- **Debounce to structural mutations only, or typing in the spec panel will thrash the canvas.** Every
-  keystroke in the M3 behaviour field is a model mutation but not a structural one. Route mutations
-  through a single classifier that returns `structural | content` and let only `structural` reach the
-  layout pass. This is the single highest-risk detail in M2/M3.
+- ~~**Debounce to structural mutations only, or typing in the spec panel will thrash the canvas.**
+  Route mutations through a single classifier that returns `structural | content` and let only
+  `structural` reach the layout pass. This is the single highest-risk detail in M2/M3.~~
+  **Void since the 2026-07-24 amendment — do not build this classifier.** Layout now runs **on
+  command** (auto-tidy), not on mutation, so nothing needs to decide whether a mutation should
+  re-layout: no mutation triggers layout at all. The risk this bullet described cannot occur.
+  **A worked example of a second-order consequence.** The manual-placement ruling was about user
+  control over node positions. It also silently deleted what these docs had called the highest-risk
+  detail of two milestones — because a rule that never fires automatically needs no trigger
+  classification. Worth noting when weighing future amendments: the cheap ones can quietly retire
+  whole risk categories, and the docs will keep describing them until someone checks.
 - Edge rendering between non-parent/child nodes (a module contracting with a distant sibling) has no
   library to fall back on. Deferred: the canvas draws containment first. If arbitrary edges become a
   requirement, that is the moment to re-open this ADR — a general-graph requirement is exactly what

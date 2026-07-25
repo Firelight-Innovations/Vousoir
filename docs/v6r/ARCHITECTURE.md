@@ -60,6 +60,7 @@ standalone server process, not a workbench service. See ADR-006.
 |---|---|
 | Namespace | `vousoir.*` for every command, setting, view and viewType. Today: viewsContainer `vousoir`, view `vousoir.panel`. **No commands are contributed yet** — M2 adds the first. |
 | Module system | **ESM.** `extensions/vousoir-core/package.json` has `"type": "module"`; `esbuild.mts` sets `format: 'esm'`, `external: ['vscode']`. No `require()`, no `__dirname`. See ADR-001. |
+| Webview assets | `media/canvas.js` is **plain JavaScript**, via the lint allowlist — following upstream's own convention for this file class (`media-preview/media/*Preview.js`). TypeScript would need DOM lib types the package deliberately excludes, plus a second build target, to restate a convention that already exists. Logged in `PATCHES.md` row 5. |
 | Indentation | Tabs. |
 | Copyright header | Required on core files; **exempt** for `extensions/vousoir-*`, `typings/vousoir/**`, `vousoir/**` (`PATCHES.md` Layer 1 rows #7, #8 — `build/filters.ts` + `eslint.config.js`). Do not add Microsoft's header to Vousoir-layer files. |
 | Naming | camelCase code, **kebab-case filenames** (every dot-segment kebab), SCREAMING_SNAKE constants, PascalCase types. |
@@ -77,7 +78,16 @@ Four dependency-cruiser rules, `severity: error`, enforced in CI (`.dependency-c
 - `ext-imports-only-typings-and-shared` — `extensions/vousoir-*` may import `@vousoir/typings` and `@vousoir/shared`, nothing else from the tree.
 - `no-cross-service-imports` — services talk over MCP/IPC, never imports.
 
-Plus `typings-only-imports-zod`, `no-circular`, `no-orphans`, `no-unresolvable`.
+Plus `typings-only-imports-zod`, `no-circular`, `no-orphans`, `no-unresolvable`. **All eight rules are
+intact.**
+
+> **`no-orphans` gained one `pathNot` entry in M2 — read it correctly.** It exempts
+> `^extensions/vousoir-[^/]+/media/`. A webview script is fetched **by URL** through `asWebviewUri`
+> (ADR-004), so it can never have an incoming import edge, and `no-orphans` was flagging it as dead
+> code. That is a **misclassification of one file class**, in the same category as the existing
+> `extension.ts` and `index.ts` exemptions — entry points the runtime loads rather than modules
+> anything imports. **No boundary rule was relaxed, and none of the four walls was touched.** Do not
+> cite this later as a weakened wall.
 
 **Hitting a boundary error is a design signal, not an obstacle.** `vousoir/CONTRIBUTING.md:86-93`:
 *"Do **not** route around it… Need a shape from another package? Move it to `@vousoir/typings`."*
@@ -207,30 +217,30 @@ Every signature below was read from the real `.d.ts`. Nothing here is invented.
 
 Extension host — signatures verified at `vscode.d.ts:10527`, `:10546`, `:10581`, `:10598`:
 
-```ts
-class V6rCanvasProvider implements vscode.CustomEditorProvider<V6rDocument> {
-  private readonly _onDidChange = new vscode.EventEmitter<vscode.CustomDocumentEditEvent<V6rDocument>>();
-  readonly onDidChangeCustomDocument = this._onDidChange.event;
+**Shipped as `CustomTextEditorProvider`, not the full `CustomEditorProvider` this section originally
+sketched** (PR #17). The `*.v6r` manifest genuinely **is** a text document, so the framework owns dirty
+state, save, revert and backup, and the canvas reimplements none of it. The model is not in that
+document — it is in `.vousoir/spec/`.
 
-  openCustomDocument(uri: vscode.Uri, _ctx: vscode.CustomDocumentOpenContext, _t: vscode.CancellationToken): Thenable<V6rDocument> { … }
-  resolveCustomEditor(document: V6rDocument, panel: vscode.WebviewPanel, _t: vscode.CancellationToken): Thenable<void> | void { … }
-  saveCustomDocument(document: V6rDocument, _c: vscode.CancellationToken): Thenable<void> { … }
-  saveCustomDocumentAs(document: V6rDocument, destination: vscode.Uri, _c: vscode.CancellationToken): Thenable<void> { … }
-  revertCustomDocument(document: V6rDocument, _c: vscode.CancellationToken): Thenable<void> { … }
-  backupCustomDocument(document: V6rDocument, ctx: vscode.CustomDocumentBackupContext, _c: vscode.CancellationToken): Thenable<vscode.CustomDocumentBackup> { … }
+```ts
+class V6rCanvasProvider implements vscode.CustomTextEditorProvider {
+  resolveCustomTextEditor(document: vscode.TextDocument, panel: vscode.WebviewPanel, _t: vscode.CancellationToken): void { … }
 }
 
 context.subscriptions.push(
-  vscode.window.registerCustomEditorProvider('vousoir.canvas', new V6rCanvasProvider(context), {
-    supportsMultipleEditorsPerDocument: false,
+  vscode.window.registerCustomEditorProvider('vousoir.canvas', new V6rCanvasProvider(context, log), {
     webviewOptions: { retainContextWhenHidden: true },
   }),
 );
 ```
 
-`CustomDocument` needs only `{ readonly uri: Uri; dispose(): void }` (`:10377-10389`).
-`onDidChangeCustomDocument` must fire `CustomDocumentEditEvent` **or** `CustomDocumentContentChangeEvent`,
-never both (`:10579`).
+The full `CustomEditorProvider` surface below is what you would need **only if** the editor owned a
+binary or non-text model — six methods plus an event, all of which the text variant gets for free:
+`openCustomDocument`, `resolveCustomEditor`, `saveCustomDocument`, `saveCustomDocumentAs`,
+`revertCustomDocument`, `backupCustomDocument`, `onDidChangeCustomDocument`. If that ever becomes
+necessary: `CustomDocument` needs only `{ readonly uri: Uri; dispose(): void }` (`:10377-10389`), and
+`onDidChangeCustomDocument` must fire `CustomDocumentEditEvent` **or**
+`CustomDocumentContentChangeEvent`, never both (`:10579`).
 
 ### Webview assets + CSP (ADR-004)
 
@@ -434,19 +444,39 @@ rename in M1 is what keeps M2 from having to migrate a directory that already ex
 
 ### M2 — Canvas custom editor + auto-layout
 
-**Creates:** `extensions/vousoir-core/src/canvas/` (provider, document, message protocol),
-`extensions/vousoir-core/src/canvas/layout.ts` (**pure function, no `vscode` import**),
-`extensions/vousoir-core/media/canvas.{js,css}`, `customEditors` + first `vousoir.*` commands in
-`package.json` (including the auto-tidy command), a second browser-target entry in `esbuild.mts`,
-a `.vousoir/layout.json` reader/writer, and `typings/vousoir/src/v6r-manifest.ts` (moved here from
-M1 — the manifest is JSON, and its filename question is M2's to answer).
+**Created** (actual, PR #17 — this section predicted the layout engine in the extension and a second
+esbuild entry; **both were wrong**): the layout engine is in **`@vousoir/shared`** —
+`vousoir/shared/src/layout/layout-spec-tree.ts` and `layout-store.ts` — as a pure function, which is
+exactly **why it has 26 tests**: the extension has no test runner, so anything testable belongs in
+`shared` (the same rule M5 established). The extension holds only
+`extensions/vousoir-core/src/canvas/` — `v6r-canvas-provider.ts`, `canvas-html.ts`,
+`canvas-mutations.ts` — plus `media/canvas.{js,css}`. **No second esbuild entry exists**: the webview
+imports no modules, so `esbuild.mts` still has the single `extension` entry point.
 **Acceptance:** open a `*.v6r` file → nested boxes render for the tree in `.vousoir/spec/`; add, delete and
 re-nest a node → the file on disk updates; drag a node → its position persists to
 `.vousoir/layout.json` and survives a `.vousoir/cache/` wipe; run auto-tidy → layout re-runs;
-**no other action moves a node the user placed**; `layout.ts` has direct unit tests.
-**Risk:** **layout thrash.** Route every mutation through one classifier returning
-`structural | content`; only `structural` triggers layout. Get this wrong and M3 typing re-lays the
-canvas on every keystroke.
+**no other action moves a node the user placed**; the layout function has direct unit tests.
+**Risk:** ~~layout thrash / mutation classifier~~ — **void, see R1.** Layout runs on command, not on
+mutation.
+
+**Every structural edit routes through the M1 `SpecStore` — this is the most consequential decision in
+M2, and it is a principle, not an implementation note.** Delete re-parents orphans to the grandparent
+and refuses roots; re-parent refuses cycles. **The canvas invents no rules of its own.** The canvas and
+the MCP server therefore enforce **one** rule set rather than two that drift — which is the same
+argument ADR-008 makes about one schema, applied to behaviour rather than shape.
+
+**Auto-tidy is a thin wrapper over placement-clearing, not a second layout path.** Clearing a
+placement already returns a node to its auto position; Tidy just persists that clearing. A test asserts
+a cleared placement lands the node **byte-identically** where auto-layout would have put it. So there is
+one layout implementation, not two that could disagree.
+
+**Nothing in the codebase clears placements except Tidy.** That is how *"auto-layout never silently
+overrides"* is enforced **structurally rather than by discipline** — there is no other code path that
+could.
+
+**`CustomTextEditorProvider`, not the full `CustomEditorProvider`** that ADR-001 sketches. The `*.v6r`
+manifest genuinely **is** a text document, so the framework owns dirty state, save and revert, and the
+canvas reimplements none of it. The model lives in `.vousoir/spec/`, not in that document.
 **Changed by recon:** hand-rolled recursive layout, no ELK/dagre, no React Flow (ADR-003) — this
 overrules the Stage 3 tech-stack selection. Approved by the user on 2026-07-24 **with a revisit
 trigger**: reconsider a routing library only once the canvas renders contract edges *and* hand-rolled
@@ -455,6 +485,15 @@ routing is ugly.
 auto-tidy command that **must never silently override a user's placement**. This **supersedes**
 `vousoir-source-of-truth.md:86` (Feature 3), which says auto-layout *"has to work invisibly, not be a
 separate 'clean up' action"*. **Do not implement Feature 3 as written** — see the ADR-003 amendment.
+
+> ### ⚠️ The canvas has never been rendered
+>
+> All seven interactions — pan, zoom, create, rename, delete, drag-to-nest, drill-in, tidy —
+> **typecheck, lint and bundle, and have never been exercised by a browser or a human.** The webview
+> script, the CSP, and `asWebviewUri` resolution are **all unverified**. Every other leg of M2's DoD is
+> verified end-to-end; this one needs a human to launch the dev build (`scripts/code.bat`) and open a
+> `*.v6r` file. **Until then, do not describe the canvas as working.** 187 passing tests say the
+> engine is correct; they say nothing about whether anything appears on screen.
 
 ### M3 — Per-node spec panel
 
@@ -654,7 +693,7 @@ and converge here. **Settle both before building this milestone, and land them t
 
 | # | Risk | Mitigation |
 |---|---|---|
-| R1 | **Layout thrash in M2/M3** — spec-text edits re-run layout on every keystroke | Single mutation classifier; only `structural` reaches layout. Keep `layout.ts` a pure function with direct tests. Highest-probability failure in the plan. |
+| R1 | ~~**Layout thrash in M2/M3** — spec-text edits re-run layout on every keystroke~~ | **VOID since the ADR-003 amendment (2026-07-24).** Layout runs **on command**, not on mutation, so no mutation can trigger a re-layout and no classifier exists to get wrong. **Do not build the `structural \| content` classifier.** A second-order consequence of the manual-placement ruling: it retired what these docs called the plan's highest-probability failure. |
 | R2 | **Missing `ELECTRON_RUN_AS_NODE` in M5** — silently launches an Electron instance; no plain-Node test can catch it | Assert the env var in the spawn options in a unit test **and** verify once by hand in the real shell (`PATCHES.md:276`). |
 | R3 | **ADR-003 overrules a made Stage 3 decision** (React Flow + ELK) | **Approved 2026-07-24 with a revisit trigger**: contract links create cross-edges the strict-tree argument does not cover, so reconsider a routing library once the canvas renders contract edges *and* hand-rolled routing is ugly — not before. Still reversible behind the same pure-function signature. |
 | R9 | **Feature 3 is stale and says the opposite of ADR-003** — it forbids a manual "clean up" action (`vousoir-source-of-truth.md:86`); the 2026-07-24 ruling requires exactly that | Follow the ADR-003 amendment, not Feature 3. `vousoir-source-of-truth.md` needs its author's edit; until then the two documents disagree and the ADR is operative. |
