@@ -115,6 +115,7 @@ function place(
 		id: measured.node.id,
 		title: measured.node.frontmatter.title,
 		status: measured.node.frontmatter.status,
+		parentId: measured.node.frontmatter.parent,
 		x: originX,
 		y: originY,
 		width: measured.width,

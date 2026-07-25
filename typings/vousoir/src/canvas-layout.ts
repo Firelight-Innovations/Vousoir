@@ -53,6 +53,8 @@ export interface CanvasBox {
 	readonly id: string;
 	readonly title: string;
 	readonly status: string;
+	/** The node's real parent, or `null` for a root. Lets the canvas tell a move from a nest. */
+	readonly parentId: string | null;
 	/** Absolute canvas coordinates of the top-left corner. */
 	readonly x: number;
 	readonly y: number;

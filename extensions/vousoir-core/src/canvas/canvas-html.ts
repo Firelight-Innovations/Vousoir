@@ -39,8 +39,14 @@ export function canvasHtml(webview: Webview, mediaRoot: Uri, projectName: string
 <body>
 <div id="v6r-toolbar">
 	<span id="v6r-project">${escapeText(projectName)}</span>
-	<span id="v6r-hint">drag to pan &middot; scroll to zoom</span>
+	<button id="v6r-add" type="button" title="Add a module inside the selected one">Add</button>
+	<button id="v6r-rename" type="button" title="Rename the selected module">Rename</button>
+	<button id="v6r-delete" type="button" title="Delete the selected module">Delete</button>
+	<button id="v6r-tidy" type="button" title="Re-run auto-layout, discarding manual placements">Tidy</button>
+	<button id="v6r-back" type="button" title="Back to the whole tree">Whole tree</button>
+	<span id="v6r-hint">right-click a module to select &middot; double-click to drill in &middot; drag to pan &middot; scroll to zoom</span>
 </div>
+<div id="v6r-notice" hidden></div>
 <div id="v6r-viewport"><div id="v6r-surface"></div></div>
 <div id="v6r-empty" hidden></div>
 <script nonce="${nonce}" src="${escapeAttribute(script)}"></script>

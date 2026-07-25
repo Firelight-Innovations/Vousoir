@@ -21,11 +21,16 @@
 	const surface = document.getElementById('v6r-surface');
 	const empty = document.getElementById('v6r-empty');
 
+	const notice = document.getElementById('v6r-notice');
+	let noticeTimer = null;
+
 	const MIN_SCALE = 0.15;
 	const MAX_SCALE = 3;
 
 	/** Pan/zoom lives only in the webview: it is a view concern, not model state. */
 	const view = { x: 0, y: 0, scale: 1 };
+	/** The last rendered boxes, kept for drop hit-testing. */
+	let lastBoxes = [];
 
 	function applyTransform() {
 		surface.style.transform = `translate(${view.x}px, ${view.y}px) scale(${view.scale})`;
@@ -44,6 +49,7 @@
 		}
 		empty.hidden = true;
 
+		lastBoxes = message.boxes;
 		// Shallow boxes first, so a child always paints over its parent.
 		for (const box of [...message.boxes].sort((a, b) => a.depth - b.depth)) {
 			surface.append(renderBox(box));
@@ -71,9 +77,27 @@
 		element.append(status);
 
 		element.addEventListener('mousedown', (event) => {
-			// Stop the pan handler claiming a click that was aimed at a node.
+			// Stop the pan handler claiming a gesture that was aimed at a node.
 			event.stopPropagation();
 			vscode.postMessage({ type: 'selectNode', id: box.id });
+			dragging = {
+				id: box.id,
+				box: box,
+				element: element,
+				startX: event.clientX,
+				startY: event.clientY,
+				moved: false,
+			};
+		});
+		element.addEventListener('dblclick', (event) => {
+			event.stopPropagation();
+			vscode.postMessage({ type: 'drillInto', id: box.id });
+		});
+		element.addEventListener('contextmenu', (event) => {
+			event.preventDefault();
+			event.stopPropagation();
+			selectedId = box.id;
+			showNotice('Selected "' + box.title + '". Use the toolbar to add, rename or delete.');
 		});
 		return element;
 	}
@@ -84,8 +108,42 @@
 		empty.textContent = text;
 	}
 
+	function showNotice(text) {
+		notice.textContent = text;
+		notice.hidden = false;
+		if (noticeTimer !== null) {
+			clearTimeout(noticeTimer);
+		}
+		noticeTimer = setTimeout(function () { notice.hidden = true; }, 4000);
+	}
+
+	/**
+	 * Which box is under the pointer, ignoring the one being dragged and its own subtree.
+	 * Deepest wins, so dropping onto a nested module nests into that module rather than
+	 * its parent. The store still refuses a genuine cycle; this only avoids the obvious one.
+	 */
+	function dropTargetAt(clientX, clientY, draggedId) {
+		const rect = viewport.getBoundingClientRect();
+		const x = (clientX - rect.left - view.x) / view.scale;
+		const y = (clientY - rect.top - view.y) / view.scale;
+		let best = null;
+		for (const box of lastBoxes) {
+			if (box.id === draggedId) {
+				continue;
+			}
+			if (x >= box.x && x <= box.x + box.width && y >= box.y && y <= box.y + box.height) {
+				if (best === null || box.depth > best.depth) {
+					best = box;
+				}
+			}
+		}
+		return best;
+	}
+
 	// --- Pan ---
 	let panning = null;
+	let dragging = null;
+	let selectedId = null;
 
 	viewport.addEventListener('mousedown', (event) => {
 		if (event.button !== 0) {
@@ -97,6 +155,17 @@
 	});
 
 	window.addEventListener('mousemove', (event) => {
+		if (dragging !== null) {
+			const dx = (event.clientX - dragging.startX) / view.scale;
+			const dy = (event.clientY - dragging.startY) / view.scale;
+			if (!dragging.moved && Math.abs(dx) + Math.abs(dy) < 3) {
+				return; // A few pixels of jitter is a click, not a drag.
+			}
+			dragging.moved = true;
+			dragging.element.style.left = (dragging.box.x + dx) + 'px';
+			dragging.element.style.top = (dragging.box.y + dy) + 'px';
+			return;
+		}
 		if (panning === null) {
 			return;
 		}
@@ -105,7 +174,27 @@
 		applyTransform();
 	});
 
-	window.addEventListener('mouseup', () => {
+	window.addEventListener('mouseup', (event) => {
+		if (dragging !== null) {
+			const drag = dragging;
+			dragging = null;
+			if (drag.moved) {
+				const target = dropTargetAt(event.clientX, event.clientY, drag.id);
+				const dx = (event.clientX - drag.startX) / view.scale;
+				const dy = (event.clientY - drag.startY) / view.scale;
+				if (target !== null && target.id !== drag.box.parentId) {
+					// Dropped onto another module: nest into it. Re-parenting moves the
+					// files, so the extension redraws and any stale placement is replaced.
+					vscode.postMessage({ type: 'reparentNode', id: drag.id, parent: target.id });
+				} else {
+					vscode.postMessage({
+						type: 'moveNode',
+						id: drag.id,
+						position: { x: drag.box.x + dx, y: drag.box.y + dy },
+					});
+				}
+			}
+		}
 		panning = null;
 		viewport.classList.remove('v6r-panning');
 	});
@@ -139,11 +228,31 @@
 			render(message);
 		} else if (message.type === 'showError') {
 			showError(message.message);
+		} else if (message.type === 'notice') {
+			showNotice(message.message);
 		}
 	});
 
 	window.addEventListener('error', (event) => {
 		vscode.postMessage({ type: 'error', message: String(event.message) });
+	});
+
+	document.getElementById('v6r-add').addEventListener('click', () => {
+		vscode.postMessage({ type: 'createNode', parent: selectedId });
+	});
+	document.getElementById('v6r-rename').addEventListener('click', () => {
+		if (selectedId === null) { showNotice('Select a module first (right-click it).'); return; }
+		vscode.postMessage({ type: 'renameNode', id: selectedId });
+	});
+	document.getElementById('v6r-delete').addEventListener('click', () => {
+		if (selectedId === null) { showNotice('Select a module first (right-click it).'); return; }
+		vscode.postMessage({ type: 'deleteNode', id: selectedId });
+	});
+	document.getElementById('v6r-tidy').addEventListener('click', () => {
+		vscode.postMessage({ type: 'tidy' });
+	});
+	document.getElementById('v6r-back').addEventListener('click', () => {
+		vscode.postMessage({ type: 'drillInto', id: null });
 	});
 
 	applyTransform();

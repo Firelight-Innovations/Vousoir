@@ -24,6 +24,20 @@ export const canvasInboundMessageSchema = z.discriminatedUnion('type', [
 	z.object({ type: z.literal('selectNode'), id: z.string().min(1).nullable() }),
 	/** The user asked to re-run auto-layout, discarding manual placements. */
 	z.object({ type: z.literal('tidy') }),
+	/**
+	 * The user dropped a node onto another. Re-parents through the M1 store, which owns
+	 * cycle rejection — dropping a node onto its own descendant is refused there, not here.
+	 * `parent: null` drops it onto empty canvas, making it a root.
+	 */
+	z.object({ type: z.literal('reparentNode'), id: z.string().min(1), parent: z.string().min(1).nullable() }),
+	/** Drill in: show this subtree alone. `null` returns to the whole tree. */
+	z.object({ type: z.literal('drillInto'), id: z.string().min(1).nullable() }),
+	/** Create a module under `parent`; `null` creates a root. */
+	z.object({ type: z.literal('createNode'), parent: z.string().min(1).nullable() }),
+	/** Rename a module. Title only — ids are stable, so nothing moves on disk. */
+	z.object({ type: z.literal('renameNode'), id: z.string().min(1) }),
+	/** Delete a module. Orphans re-parent to the grandparent; roots are refused. */
+	z.object({ type: z.literal('deleteNode'), id: z.string().min(1) }),
 	/** Something went wrong in the webview; surfaced to the output channel. */
 	z.object({ type: z.literal('error'), message: z.string() }),
 ]);
@@ -48,6 +62,7 @@ export const canvasOutboundMessageSchema = z.discriminatedUnion('type', [
 				id: z.string(),
 				title: z.string(),
 				status: z.string(),
+				parentId: z.string().nullable(),
 				x: z.number(),
 				y: z.number(),
 				width: z.number(),
@@ -59,5 +74,10 @@ export const canvasOutboundMessageSchema = z.discriminatedUnion('type', [
 	}),
 	/** A human-readable problem to show in place of the canvas. */
 	z.object({ type: z.literal('showError'), message: z.string() }),
+	/**
+	 * A transient notice — a refused re-parent, a deleted root. Shown on the canvas rather
+	 * than as a modal, because these are recoverable and the user is mid-gesture.
+	 */
+	z.object({ type: z.literal('notice'), message: z.string() }),
 ]);
 export type CanvasOutboundMessage = z.infer<typeof canvasOutboundMessageSchema>;

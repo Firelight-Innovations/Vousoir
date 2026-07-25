@@ -10,6 +10,7 @@
 
 import type { SpecNode, SpecTree } from '@vousoir/typings';
 import { SpecStoreError } from './spec-store-error.ts';
+import { buildSpecTree } from './spec-tree.ts';
 
 /**
  * Root-to-node ids, inclusive: `['root', 'api', 'users']` for `users`. Feed it to
@@ -56,4 +57,28 @@ export function specNodeDescendantIds(tree: SpecTree, id: string): ReadonlySet<s
 		queue.push(...(childrenOf.get(next) ?? []));
 	}
 	return descendants;
+}
+
+/**
+ * A view of `rootId` and its descendants as a tree in its own right — what the canvas
+ * shows when the user drills into a module.
+ *
+ * `rootId`'s `parent` is set to `null` in the returned view so the subtree has a root that
+ * resolves. That is a DERIVED VIEW ONLY and is never written: the node on disk keeps its
+ * real parent, and drilling in is a way of looking, not an edit.
+ */
+export function subtreeOf(tree: SpecTree, rootId: string): SpecTree {
+	const root = tree.byId.get(rootId);
+	if (root === undefined) {
+		throw new SpecStoreError(`there is no spec node with id "${rootId}".`);
+	}
+	const included = new Set<string>([rootId, ...specNodeDescendantIds(tree, rootId)]);
+	const nodes = [...tree.byId.values()]
+		.filter((node) => included.has(node.id))
+		.map((node) => (node.id === rootId ? detach(node) : node));
+	return buildSpecTree(nodes);
+}
+
+function detach(node: SpecNode): SpecNode {
+	return { ...node, frontmatter: { ...node.frontmatter, parent: null } };
 }

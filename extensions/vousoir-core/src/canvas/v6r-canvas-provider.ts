@@ -14,7 +14,7 @@
  */
 
 import * as vscode from 'vscode';
-import { SpecStore, layoutSpecTree, loadLayout, saveLayout, withPosition, clearedLayout } from '@vousoir/shared';
+import { SpecStore, layoutSpecTree, loadLayout, saveLayout, subtreeOf, withPosition, clearedLayout } from '@vousoir/shared';
 import {
 	V6R_MANIFEST_VERSION,
 	canvasInboundMessageSchema,
@@ -23,6 +23,7 @@ import {
 	type V6rLayoutFile,
 } from '@vousoir/typings';
 import { canvasHtml } from './canvas-html.ts';
+import { applyCanvasMutation } from './canvas-mutations.ts';
 
 /** The `viewType` the manifest contributes and `registerCustomEditorProvider` binds. */
 export const CANVAS_VIEW_TYPE = 'vousoir.canvas';
@@ -38,6 +39,8 @@ export function registerCanvasEditor(context: vscode.ExtensionContext, log: vsco
 class V6rCanvasProvider implements vscode.CustomTextEditorProvider {
 	readonly #context: vscode.ExtensionContext;
 	readonly #log: vscode.OutputChannel;
+	/** Drill-in target: render only this subtree. `undefined` shows the whole tree. */
+	#focusId: string | null = null;
 
 	constructor(context: vscode.ExtensionContext, log: vscode.OutputChannel) {
 		this.#context = context;
@@ -62,7 +65,7 @@ class V6rCanvasProvider implements vscode.CustomTextEditorProvider {
 		};
 
 		panel.webview.onDidReceiveMessage((raw: unknown) => {
-			void this.#onMessage(raw, repoRoot, layout, draw).then((next) => {
+			void this.#onMessage(raw, panel, repoRoot, layout, draw).then((next) => {
 				if (next !== undefined) {
 					layout = next;
 				}
@@ -91,6 +94,7 @@ class V6rCanvasProvider implements vscode.CustomTextEditorProvider {
 	/** Handles one inbound message. Returns a new layout when it changed. */
 	async #onMessage(
 		raw: unknown,
+		panel: vscode.WebviewPanel,
 		repoRoot: string,
 		layout: V6rLayoutFile,
 		draw: () => Promise<void>,
@@ -112,10 +116,29 @@ class V6rCanvasProvider implements vscode.CustomTextEditorProvider {
 				return next;
 			}
 			case 'tidy': {
+				// Auto-tidy is this, and only this: discard the user's placements so
+				// auto-layout applies again. It never happens as a side effect of an edit.
 				const next = clearedLayout();
 				await saveLayout(repoRoot, next);
 				await draw();
 				return next;
+			}
+			case 'drillInto':
+				this.#focusId = parsed.data.id;
+				await draw();
+				return undefined;
+			case 'createNode':
+			case 'renameNode':
+			case 'deleteNode':
+			case 'reparentNode': {
+				const outcome = await applyCanvasMutation(repoRoot, parsed.data);
+				if (outcome.notice !== undefined) {
+					post(panel, { type: 'notice', message: outcome.notice });
+				}
+				if (outcome.changed) {
+					await draw();
+				}
+				return undefined;
 			}
 			case 'selectNode':
 				// M3 wires the spec panel to this; M2 only needs the canvas to send it.
@@ -137,10 +160,14 @@ class V6rCanvasProvider implements vscode.CustomTextEditorProvider {
 			const store = await SpecStore.open({ repoRoot });
 			try {
 				const current = await loadLayout(repoRoot);
-				const canvas = layoutSpecTree(store.tree, { positions: current.positions });
+				// Drilling in is a VIEW: the subtree is re-rooted for layout only, and the
+				// node on disk keeps its real parent.
+				const focused = this.#focusId === null ? store.tree : subtreeOf(store.tree, this.#focusId);
+				const canvas = layoutSpecTree(focused, { positions: current.positions });
+				const focusTitle = this.#focusId === null ? undefined : store.tree.byId.get(this.#focusId)?.frontmatter.title;
 				post(panel, {
 					type: 'render',
-					projectName,
+					projectName: focusTitle === undefined ? projectName : `${projectName} / ${focusTitle}`,
 					width: canvas.width,
 					height: canvas.height,
 					boxes: canvas.boxes.map((box) => ({ ...box })),
