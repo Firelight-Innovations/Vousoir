@@ -115,8 +115,10 @@ export class PostUpdateWidgetContribution extends Disposable implements IWorkben
 		if (!input) {
 			try {
 				const url = getUpdateInfoUrl(this.productService.version);
-				const context = await this.requestService.request({ url, callSite: 'postUpdateWidget' }, CancellationToken.None);
-				input = await asTextOrError(context);
+				if (url) {
+					const context = await this.requestService.request({ url, callSite: 'postUpdateWidget' }, CancellationToken.None);
+					input = await asTextOrError(context);
+				}
 			} catch { }
 		}
 
