@@ -226,9 +226,15 @@ export class BrowserWorkbenchEnvironmentService implements IBrowserWorkbenchEnvi
 
 	@memoize
 	get webviewExternalEndpoint(): string {
+		// Vousoir: no Microsoft CDN fallback. A web deployment must configure its
+		// own webview host via `options.webviewEndpoint` or the product.json
+		// `webviewContentExternalBaseUrlTemplate`; if neither is set the webview
+		// layer reports a clear "not configured" error rather than silently
+		// serving content from a Microsoft-owned origin. (The desktop app uses the
+		// local `vscode-webview://` scheme and never reaches this path.)
 		const endpoint = this.options.webviewEndpoint
 			|| this.productService.webviewContentExternalBaseUrlTemplate
-			|| 'https://{{uuid}}.vscode-cdn.net/{{quality}}/{{commit}}/out/vs/workbench/contrib/webview/browser/pre/';
+			|| '';
 
 		const webviewExternalEndpointCommit = this.payload?.get('webviewExternalEndpointCommit');
 		return endpoint
