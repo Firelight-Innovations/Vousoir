@@ -858,17 +858,21 @@ export class CodeWindow extends BaseWindow implements ICodeWindow {
 		// Handle Workspace events
 		this._register(this.workspacesManagementMainService.onDidDeleteUntitledWorkspace(e => this.onDidDeleteUntitledWorkspace(e)));
 
-		// Inject headers when requests are incoming
-		const urls = ['https://*.vsassets.io/*'];
+		// Inject marketplace headers into requests to the configured extension
+		// gallery (Open VSX). Vousoir dropped the Microsoft Marketplace CDN
+		// (`*.vsassets.io`) allowlist that upstream carried here.
+		const urls: string[] = [];
 		if (this.productService.extensionsGallery?.serviceUrl) {
 			const serviceUrl = URI.parse(this.productService.extensionsGallery.serviceUrl);
 			urls.push(`${serviceUrl.scheme}://${serviceUrl.authority}/*`);
 		}
-		this._win.webContents.session.webRequest.onBeforeSendHeaders({ urls }, async (details, cb) => {
-			const headers = await this.getMarketplaceHeaders();
+		if (urls.length) {
+			this._win.webContents.session.webRequest.onBeforeSendHeaders({ urls }, async (details, cb) => {
+				const headers = await this.getMarketplaceHeaders();
 
-			cb({ cancel: false, requestHeaders: Object.assign(details.requestHeaders, headers) });
-		});
+				cb({ cancel: false, requestHeaders: Object.assign(details.requestHeaders, headers) });
+			});
+		}
 	}
 
 	private marketplaceHeadersPromise: Promise<object> | undefined;

@@ -78,7 +78,37 @@ if (process.arch !== os.arch()) {
 function hasSupportedVisualStudioVersion() {
 	// Translated over from
 	// https://source.chromium.org/chromium/chromium/src/+/master:build/vs_toolchain.py;l=140-175
-	const supportedVersions = ['2022', '2019'];
+	const supportedVersions = ['2026', '2022', '2019'];
+
+	// Ask vswhere before guessing paths. It ships with every Visual Studio since 2017 at
+	// a fixed location and reports installations regardless of year or edition, so it
+	// keeps working when a new VS ships and the year list below goes stale.
+	//
+	// That staleness is not hypothetical: GitHub's `windows-latest` is now the
+	// `windows-2025-vs2026` image, whose Visual Studio 2026 matched none of the hardcoded
+	// years — so this check failed and `npm ci` aborted in preinstall, before a single
+	// file was compiled. Every Windows CI run died there.
+	const programFiles86Path = process.env['ProgramFiles(x86)'];
+	if (programFiles86Path) {
+		const vswhere = path.join(programFiles86Path, 'Microsoft Visual Studio', 'Installer', 'vswhere.exe');
+		if (fs.existsSync(vswhere)) {
+			try {
+				const found = child_process.execFileSync(vswhere, [
+					'-latest',
+					'-prerelease',
+					'-products', '*',
+					'-requires', 'Microsoft.VisualStudio.Component.VC.Tools.x86.x64',
+					'-property', 'installationPath'
+				], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+				if (found) {
+					return 1;
+				}
+			} catch {
+				// vswhere is present but failed. Fall through to the path scan rather than
+				// treating an unusable helper as proof that no toolchain exists.
+			}
+		}
+	}
 
 	const availableVersions = [];
 	for (const version of supportedVersions) {
@@ -89,8 +119,7 @@ function hasSupportedVisualStudioVersion() {
 			break;
 		}
 
-		// Check default installation paths
-		const programFiles86Path = process.env['ProgramFiles(x86)'];
+		// Check default installation paths (`programFiles86Path` is read once above)
 		const programFiles64Path = process.env['ProgramFiles'];
 
 		const vsTypes = ['Enterprise', 'Professional', 'Community', 'Preview', 'BuildTools', 'IntPreview'];
