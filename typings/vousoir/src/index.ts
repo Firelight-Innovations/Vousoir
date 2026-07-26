@@ -45,3 +45,12 @@ export * from './mcp-spec-tools.ts';
 // Fanning a parent module out to one child agent per sub-module. Cross-sibling integration
 // testing is reported as blocked on ADR open question 10, not silently omitted.
 export * from './orchestration.ts';
+
+// The `*.v6r` project manifest the canvas editor binds to (ADR-002). A pointer, not the model.
+export * from './v6r-manifest.ts';
+
+// Canvas geometry and `.vousoir/layout.json` — manual placements only (amended ADR-003).
+export * from './canvas-layout.ts';
+
+// The webview<->extension message protocol, validated on arrival at the extension.
+export * from './canvas-protocol.ts';

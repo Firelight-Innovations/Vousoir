@@ -22,7 +22,10 @@ export type { ResolvedSpecNodeContracts } from './spec-store/resolve-spec-node.t
 // tree without re-deriving either — §7.3's "no package redeclares a shared shape locally"
 // applies to behaviour as much as to types.
 export { buildSpecTree } from './spec-store/spec-tree.ts';
-export { specNodeDescendantIds, specNodeIdChain } from './spec-store/spec-tree-walk.ts';
+export { specNodeDescendantIds, specNodeIdChain, subtreeOf } from './spec-store/spec-tree-walk.ts';
+// Id allocation for new modules: ids are permanent, so the canvas cannot let a user pick
+// one that already exists.
+export { uniqueNodeId } from './spec-store/unique-node-id.ts';
 export { specNodePaths, SPEC_FILE_EXTENSION } from './spec-store/spec-paths.ts';
 export type { SpecNodePaths } from './spec-store/spec-paths.ts';
 
@@ -54,3 +57,9 @@ export { orchestrateSubtree, INTEGRATION_TESTS_BLOCKED_DETAIL } from './orchestr
 export type { OrchestrateSubtreeOptions, OrchestrationDispatch } from './orchestrate/orchestrate-subtree.ts';
 export { TraceWriter } from './dispatch/trace-writer.ts';
 export type { TraceEventBody } from './dispatch/trace-writer.ts';
+
+// Canvas layout (M2). `layoutSpecTree` is a pure function so it can be tested directly;
+// everything else on the canvas sits behind a postMessage seam.
+export { layoutSpecTree, LAYOUT_METRICS } from './layout/layout-spec-tree.ts';
+export type { LayoutOptions } from './layout/layout-spec-tree.ts';
+export { clearedLayout, emptyLayout, layoutFilePath, loadLayout, saveLayout, withPosition } from './layout/layout-store.ts';
