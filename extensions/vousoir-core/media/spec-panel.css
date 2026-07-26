@@ -1,0 +1,160 @@
+/*
+ * Spec panel styling. A real extension file loaded through asWebviewUri (ADR-004).
+ * Every colour is a VS Code theme variable, so the panel follows the user's theme.
+ */
+
+* {
+	box-sizing: border-box;
+}
+
+body {
+	margin: 0;
+	padding: 10px;
+	font-family: var(--vscode-font-family);
+	font-size: var(--vscode-font-size);
+	color: var(--vscode-foreground);
+	background: var(--vscode-sideBar-background);
+}
+
+#v6r-empty {
+	padding: 24px 8px;
+	opacity: 0.7;
+	text-align: center;
+}
+
+#v6r-head {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	margin-bottom: 10px;
+}
+
+#v6r-meta {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-size: 0.9em;
+}
+
+#v6r-badge {
+	padding: 1px 7px;
+	border-radius: 9px;
+	background: var(--vscode-badge-background);
+	color: var(--vscode-badge-foreground);
+}
+
+#v6r-badge.v6r-complete {
+	background: var(--vscode-testing-iconPassed, var(--vscode-badge-background));
+	color: var(--vscode-editor-background);
+}
+
+section {
+	margin: 0 0 16px;
+	padding-top: 10px;
+	border-top: 1px solid var(--vscode-panel-border, transparent);
+}
+
+h2 {
+	margin: 0 0 2px;
+	font-size: 1em;
+}
+
+.v6r-help {
+	margin: 0 0 6px;
+	font-size: 0.85em;
+	opacity: 0.7;
+}
+
+input,
+textarea,
+select {
+	width: 100%;
+	font-family: inherit;
+	font-size: inherit;
+	padding: 4px 6px;
+	color: var(--vscode-input-foreground);
+	background: var(--vscode-input-background);
+	border: 1px solid var(--vscode-input-border, transparent);
+	border-radius: 3px;
+}
+
+textarea {
+	resize: vertical;
+	font-family: var(--vscode-editor-font-family);
+}
+
+#v6r-title {
+	font-size: 1.1em;
+	font-weight: 600;
+}
+
+button {
+	font-family: inherit;
+	font-size: 0.9em;
+	padding: 3px 10px;
+	border: 1px solid var(--vscode-button-border, transparent);
+	border-radius: 3px;
+	color: var(--vscode-button-foreground);
+	background: var(--vscode-button-background);
+	cursor: pointer;
+}
+
+button.v6r-secondary,
+#v6r-open,
+#v6r-add-contract,
+#v6r-add-test {
+	color: var(--vscode-button-secondaryForeground, var(--vscode-foreground));
+	background: var(--vscode-button-secondaryBackground, transparent);
+}
+
+.v6r-card {
+	margin-bottom: 8px;
+	padding: 8px;
+	border: 1px solid var(--vscode-panel-border, transparent);
+	border-radius: 4px;
+	background: var(--vscode-editorWidget-background);
+}
+
+.v6r-row {
+	display: flex;
+	gap: 6px;
+	margin-bottom: 6px;
+}
+
+.v6r-row select {
+	width: 40%;
+}
+
+.v6r-field {
+	margin-bottom: 6px;
+}
+
+.v6r-field label {
+	display: block;
+	font-size: 0.8em;
+	opacity: 0.75;
+	margin-bottom: 2px;
+}
+
+#v6r-foot {
+	position: sticky;
+	bottom: 0;
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 8px 0;
+	background: var(--vscode-sideBar-background);
+}
+
+#v6r-dirty {
+	font-size: 0.85em;
+	opacity: 0.7;
+}
+
+#v6r-notice {
+	margin-bottom: 8px;
+	padding: 6px 8px;
+	border-radius: 3px;
+	background: var(--vscode-inputValidation-warningBackground, var(--vscode-editorWidget-background));
+	border: 1px solid var(--vscode-inputValidation-warningBorder, transparent);
+}

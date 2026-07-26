@@ -54,3 +54,9 @@ export * from './canvas-layout.ts';
 
 // The webview<->extension message protocol, validated on arrival at the extension.
 export * from './canvas-protocol.ts';
+
+// Spec completeness: the fact behind the canvas badge, derived from content not status.
+export * from './spec-completeness.ts';
+
+// The spec panel<->extension message protocol (M3), validated on arrival.
+export * from './spec-panel-protocol.ts';

@@ -63,3 +63,11 @@ export type { TraceEventBody } from './dispatch/trace-writer.ts';
 export { layoutSpecTree, LAYOUT_METRICS } from './layout/layout-spec-tree.ts';
 export type { LayoutOptions } from './layout/layout-spec-tree.ts';
 export { clearedLayout, emptyLayout, layoutFilePath, loadLayout, saveLayout, withPosition } from './layout/layout-store.ts';
+
+// Spec completeness (M3). Pure, so the canvas badge, the panel and the M4 compile
+// command all answer the same question the same way.
+export { specCompleteness } from './completeness/spec-completeness.ts';
+
+// Panel edits that never migrate behaviour between its two homes.
+export { editSpecNode, usesFrontmatterBehaviour } from './spec-store/edit-spec-node.ts';
+export type { SpecNodeEdit } from './spec-store/edit-spec-node.ts';
