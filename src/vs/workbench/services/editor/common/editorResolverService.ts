@@ -73,7 +73,7 @@ const editorAssociationsConfigurationNode: IConfigurationNode = {
 		},
 		[editorsAssociationsSettingId]: {
 			type: 'object',
-			markdownDescription: localize('editor.editorAssociations', "Configure [glob patterns](https://aka.ms/vscode-glob-patterns) to editors (for example `\"*.hex\": \"hexEditor.hexedit\"`). These have precedence over the default behavior."),
+			markdownDescription: localize('editor.editorAssociations', "Configure glob patterns to editors (for example `\"*.hex\": \"hexEditor.hexedit\"`). These have precedence over the default behavior."),
 			additionalProperties: {
 				type: 'string'
 			},
@@ -83,7 +83,7 @@ const editorAssociationsConfigurationNode: IConfigurationNode = {
 		},
 		[diffEditorsAssociationsSettingId]: {
 			type: 'object',
-			markdownDescription: localize('editor.diffEditorAssociations', "Configure [glob patterns](https://aka.ms/vscode-glob-patterns) to editors for diff views (for example `\"*.md\": \"vscode.markdown.preview.editor\"`). These override `workbench.editorAssociations` for diffs."),
+			markdownDescription: localize('editor.diffEditorAssociations', "Configure glob patterns to editors for diff views (for example `\"*.md\": \"vscode.markdown.preview.editor\"`). These override `workbench.editorAssociations` for diffs."),
 			additionalProperties: {
 				type: 'string'
 			}

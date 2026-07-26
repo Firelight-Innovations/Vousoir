@@ -1340,7 +1340,7 @@ export abstract class AbstractTaskService extends Disposable implements ITaskSer
 	}
 
 	private _openDocumentation(): void {
-		this._openerService.open(URI.parse('https://code.visualstudio.com/docs/editor/tasks#_defining-a-problem-matcher'));
+		this._openerService.open(URI.parse('https://github.com/Firelight-Innovations/Vousoir'));
 	}
 
 	private async _findSingleWorkspaceTaskOfGroup(group: TaskGroup): Promise<ITaskSummary | undefined> {
@@ -1746,7 +1746,7 @@ export abstract class AbstractTaskService extends Disposable implements ITaskSer
 			};
 			let content = [
 				'{',
-				nls.localize('tasksJsonComment', '\t// See https://go.microsoft.com/fwlink/?LinkId=733558 \n\t// for the documentation about the tasks.json format'),
+				nls.localize('tasksJsonComment', '\t// See https://github.com/Firelight-Innovations/Vousoir \n\t// for the documentation about the tasks.json format'),
 			].join('\n') + JSON.stringify(value, null, '\t').substr(1);
 			const editorConfig = this._configurationService.getValue<{ editor: { insertSpaces: boolean; tabSize: number } }>();
 			if (editorConfig.editor.insertSpaces) {

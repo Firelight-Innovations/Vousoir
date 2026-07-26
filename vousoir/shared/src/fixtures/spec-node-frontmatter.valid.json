@@ -10,16 +10,16 @@
 	},
 	{
 		"id": "v6r-scaffold",
-		"title": ".v6r scaffold",
+		"title": ".vousoir scaffold",
 		"parent": "root",
 		"status": "verified",
-		"behaviour": "Creates a well-formed .v6r/ folder in a target repo.",
+		"behaviour": "Creates a well-formed .vousoir/ folder in a target repo.",
 		"contract": "v6rInit(repoRoot) creates spec/, whiteboards/, traces/, docs/, cache/, and .gitignore.",
 		"testCases": [
 			{
 				"id": "tc-1",
 				"description": "creates exactly the §8 layout",
-				"expected": "readdir(.v6r) matches the five subdirs plus .gitignore"
+				"expected": "readdir(.vousoir) matches the five subdirs plus .gitignore"
 			}
 		]
 	},
@@ -28,5 +28,57 @@
 		"title": "Some future module",
 		"parent": "root",
 		"status": "unspecified"
+	},
+	{
+		"id": "typed-contracts",
+		"title": "A node using the ADR-008 contracts[] array",
+		"parent": "root",
+		"status": "specified",
+		"contracts": [
+			{
+				"id": "c-module",
+				"kind": "moduleApi",
+				"name": "SpecStore.load",
+				"body": "load(): Promise<SpecTree> — throws SpecStoreError naming the offending file."
+			},
+			{
+				"id": "c-service",
+				"kind": "serviceApi",
+				"name": "GET /modules",
+				"body": "200 with a JSON array of { id, title, parent, status }."
+			},
+			{
+				"id": "c-db",
+				"kind": "dbSchema",
+				"name": "modules",
+				"body": "id TEXT PRIMARY KEY, title TEXT NOT NULL, parent TEXT NULL"
+			}
+		],
+		"testCases": [
+			{
+				"id": "tc-gwt",
+				"description": "the long form of a test case",
+				"expected": "the response array has three entries",
+				"given": "a spec directory holding three nodes",
+				"when": "GET /modules is called",
+				"then": "the response array has three entries",
+				"snippet": "curl -s localhost:7777/modules | jq length"
+			}
+		]
+	},
+	{
+		"id": "empty-contract-body",
+		"title": "A contract can be named on the canvas before it is written",
+		"parent": "root",
+		"status": "unspecified",
+		"contracts": [{ "id": "c-stub", "kind": "moduleApi", "name": "not written yet", "body": "" }]
+	},
+	{
+		"id": "both-contract-forms",
+		"title": "Deprecated scalar and typed array side by side",
+		"parent": "root",
+		"status": "specified",
+		"contract": "the deprecated free-form string",
+		"contracts": [{ "id": "c-wins", "kind": "moduleApi", "name": "resolveSpecNodeContracts", "body": "contracts[] wins" }]
 	}
 ]

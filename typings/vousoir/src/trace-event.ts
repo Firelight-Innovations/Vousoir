@@ -1,10 +1,10 @@
 /**
- * Trace-event schema for `.v6r/traces/*.jsonl` (work order §8, trace capture decision 5):
+ * Trace-event schema for `.vousoir/traces/*.jsonl` (work order §8, trace capture decision 5):
  * one JSONL record per line, capturing everything the harness emits during an agent run —
  * messages, thinking, tool calls, results, and per-step diffs.
  *
  * Traces are the committed, portable source of truth (plain JSONL, readable in any editor,
- * diffable in git); a SQLite index in `.v6r/cache/` is only a derived query cache rebuilt
+ * diffable in git); a SQLite index in `.vousoir/cache/` is only a derived query cache rebuilt
  * from this JSONL at any time — out of scope for this work order (§10).
  */
 
@@ -66,7 +66,7 @@ export const traceStatusEventSchema = traceEventBaseSchema.extend({
 });
 
 /**
- * One line of a `.v6r/traces/*.jsonl` file. Discriminated on `type` so a reader can
+ * One line of a `.vousoir/traces/*.jsonl` file. Discriminated on `type` so a reader can
  * `JSON.parse` a line and validate it without knowing the event kind up front.
  */
 export const traceEventSchema = z.discriminatedUnion('type', [

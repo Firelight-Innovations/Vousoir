@@ -13,7 +13,6 @@ import { ConfigurationTarget, IConfigurationService } from '../../../../platform
 import { INotificationHandle, INotificationService, NotificationPriority } from '../../../../platform/notification/common/notification.js';
 import { IWorkbenchContribution } from '../../../common/contributions.js';
 import { IStatusbarEntryAccessor, IStatusbarService, StatusbarAlignment } from '../../../services/statusbar/browser/statusbar.js';
-import { IOpenerService } from '../../../../platform/opener/common/opener.js';
 
 export class AccessibilityStatus extends Disposable implements IWorkbenchContribution {
 
@@ -28,7 +27,6 @@ export class AccessibilityStatus extends Disposable implements IWorkbenchContrib
 		@INotificationService private readonly notificationService: INotificationService,
 		@IAccessibilityService private readonly accessibilityService: IAccessibilityService,
 		@IStatusbarService private readonly statusbarService: IStatusbarService,
-		@IOpenerService private readonly openerService: IOpenerService,
 	) {
 		super();
 
@@ -62,12 +60,6 @@ export class AccessibilityStatus extends Disposable implements IWorkbenchContrib
 				label: localize('screenReaderDetectedExplanation.answerNo', "No"),
 				run: () => {
 					this.configurationService.updateValue('editor.accessibilitySupport', 'off', ConfigurationTarget.USER);
-				}
-			},
-			{
-				label: localize('screenReaderDetectedExplanation.answerLearnMore', "Learn More"),
-				run: () => {
-					this.openerService.open('https://code.visualstudio.com/docs/editor/accessibility#_screen-readers');
 				}
 			}],
 			{

@@ -11,7 +11,6 @@ import { IFileService, IFilesConfiguration } from '../../../../platform/files/co
 import { IWorkspaceContextService, IWorkspaceFolder, IWorkspaceFoldersChangeEvent } from '../../../../platform/workspace/common/workspace.js';
 import { ResourceMap } from '../../../../base/common/map.js';
 import { INotificationService, Severity, NeverShowAgainScope, NotificationPriority } from '../../../../platform/notification/common/notification.js';
-import { IOpenerService } from '../../../../platform/opener/common/opener.js';
 import { isAbsolute } from '../../../../base/common/path.js';
 import { IUriIdentityService } from '../../../../platform/uriIdentity/common/uriIdentity.js';
 import { IHostService } from '../../../services/host/browser/host.js';
@@ -28,7 +27,6 @@ export class WorkspaceWatcher extends Disposable {
 		@IConfigurationService private readonly configurationService: IConfigurationService,
 		@IWorkspaceContextService private readonly contextService: IWorkspaceContextService,
 		@INotificationService private readonly notificationService: INotificationService,
-		@IOpenerService private readonly openerService: IOpenerService,
 		@IUriIdentityService private readonly uriIdentityService: IUriIdentityService,
 		@IHostService private readonly hostService: IHostService,
 		@ITelemetryService private readonly telemetryService: ITelemetryService
@@ -80,11 +78,8 @@ export class WorkspaceWatcher extends Disposable {
 
 			this.notificationService.prompt(
 				Severity.Warning,
-				localize('enospcError', "Unable to watch for file changes. Please follow the instructions link to resolve this issue."),
-				[{
-					label: localize('learnMore', "Instructions"),
-					run: () => this.openerService.open(URI.parse('https://go.microsoft.com/fwlink/?linkid=867693'))
-				}],
+				localize('enospcError', "Unable to watch for file changes. This is often caused by a limit on the number of file watchers your operating system allows; increasing that limit usually resolves the issue."),
+				[],
 				{
 					sticky: true,
 					neverShowAgain: { id: 'ignoreEnospcError', isSecondary: true, scope: NeverShowAgainScope.WORKSPACE }

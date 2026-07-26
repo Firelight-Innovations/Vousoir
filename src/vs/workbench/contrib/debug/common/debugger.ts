@@ -199,13 +199,11 @@ export class Debugger implements IDebugger, IDebuggerMetadata {
 		const configs = JSON.stringify(initialConfigurations, null, '\t').split('\n').map(line => '\t' + line).join(eol).trim();
 		const comment1 = nls.localize('launch.config.comment1', "Use IntelliSense to learn about possible attributes.");
 		const comment2 = nls.localize('launch.config.comment2', "Hover to view descriptions of existing attributes.");
-		const comment3 = nls.localize('launch.config.comment3', "For more information, visit: {0}", 'https://go.microsoft.com/fwlink/?linkid=830387');
 
 		let content = [
 			'{',
 			`\t// ${comment1}`,
 			`\t// ${comment2}`,
-			`\t// ${comment3}`,
 			`\t"version": "0.2.0",`,
 			`\t"configurations": ${configs}`,
 			'}'
