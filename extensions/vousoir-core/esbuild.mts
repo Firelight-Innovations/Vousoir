@@ -33,5 +33,16 @@ run({
 	outdir: outDir,
 	additionalOptions: {
 		external: ['vscode'],
+		// `yaml` (via @vousoir/shared) is CJS and calls `require('process')`. Bundled into an
+		// ESM output that call becomes esbuild's `__require` shim, which throws
+		// `Dynamic require of "process" is not supported` and fails activation outright.
+		// The shim is written as `typeof require !== "undefined" ? require : <thrower>`, so
+		// defining a real `require` above it is enough to make those calls resolve.
+		banner: {
+			js: [
+				"import { createRequire as __vousoirCreateRequire } from 'node:module';",
+				'const require = __vousoirCreateRequire(import.meta.url);',
+			].join('\n'),
+		},
 	},
 }, process.argv);
