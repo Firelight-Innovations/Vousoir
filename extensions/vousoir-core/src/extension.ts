@@ -55,6 +55,14 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 	// model it points at is the markdown tree under .vousoir/spec/.
 	context.subscriptions.push(registerCanvasEditor(context, log, selection, specPanel));
 
+	// Registered before the service host too: compiling a work order reads `.vousoir/spec/`
+	// directly through @vousoir/shared and needs no running service (M4, ADR-002).
+	context.subscriptions.push(registerCompileWorkOrderCommand(log));
+
+	// Dispatch spawns the `claude` CLI directly from the extension host (ADR-005) — no
+	// service, so this needs nothing beyond the output channel.
+	context.subscriptions.push(registerBuildWithClaudeCommand(log));
+
 	serviceHostHandle = await startServiceHost(vscode.env.appRoot, log);
 	context.subscriptions.push({
 		dispose: () => {
