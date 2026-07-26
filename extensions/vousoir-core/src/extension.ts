@@ -16,6 +16,7 @@ import type { ServiceHostHandle } from '@vousoir/typings';
 import { VOUSOIR_VIEW_ID, VousoirViewProvider } from './panel/vousoir-view-provider.ts';
 import { startServiceHost } from './service-host/service-host-manager.ts';
 import { registerCompileWorkOrderCommand } from './work-order/compile-work-order-command.ts';
+import { registerBuildWithClaudeCommand } from './dispatch/build-with-claude-command.ts';
 
 // Module-scoped so `deactivate()` can await disposal directly - the extension host awaits the
 // promise `deactivate()` returns, which `context.subscriptions` disposal alone does not guarantee
@@ -35,6 +36,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 	// Registered before the service host too: compiling a work order reads `.vousoir/spec/`
 	// directly through @vousoir/shared and needs no running service (M4, ADR-002).
 	context.subscriptions.push(registerCompileWorkOrderCommand(log));
+
+	// Dispatch spawns the `claude` CLI directly from the extension host (ADR-005) — no
+	// service, so this needs nothing beyond the output channel.
+	context.subscriptions.push(registerBuildWithClaudeCommand(log));
 
 	serviceHostHandle = await startServiceHost(vscode.env.appRoot, log);
 	context.subscriptions.push({
