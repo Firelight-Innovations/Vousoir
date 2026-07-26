@@ -1,0 +1,21 @@
+{
+	"//": "Typechecks the webview smoke harness ONLY. It is the one place in this extension that touches DOM globals, so it is the one place that gets `lib: DOM`. The main tsconfig deliberately excludes these files: extension-host code has no DOM at runtime, and letting it compile against DOM types would turn a runtime crash into a silent type-check pass.",
+	"extends": "../../vousoir/tsconfig.base.json",
+	"compilerOptions": {
+		"rootDir": "./src",
+		"lib": [
+			"ES2022",
+			"DOM",
+			"DOM.Iterable"
+		],
+		"types": [
+			"node"
+		],
+		"noEmit": true
+	},
+	"include": [
+		"src/**/*.smoke.test.ts",
+		"src/webview-harness.ts",
+		"../../src/vscode-dts/vscode.d.ts"
+	]
+}

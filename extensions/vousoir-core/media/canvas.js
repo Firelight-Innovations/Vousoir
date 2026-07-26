@@ -117,10 +117,28 @@
 		noticeTimer = setTimeout(function () { notice.hidden = true; }, 4000);
 	}
 
+	/** True when `box` sits anywhere inside `ancestorId`, walking up the parent chain. */
+	function isInside(box, ancestorId) {
+		let parentId = box.parentId;
+		while (parentId) {
+			if (parentId === ancestorId) {
+				return true;
+			}
+			const parent = lastBoxes.find(function (candidate) { return candidate.id === parentId; });
+			parentId = parent ? parent.parentId : null;
+		}
+		return false;
+	}
+
 	/**
-	 * Which box is under the pointer, ignoring the one being dragged and its own subtree.
+	 * Which box is under the pointer, ignoring the one being dragged AND its own subtree.
 	 * Deepest wins, so dropping onto a nested module nests into that module rather than
-	 * its parent. The store still refuses a genuine cycle; this only avoids the obvious one.
+	 * its parent.
+	 *
+	 * Skipping descendants matters: dropping a module onto its own child is a natural
+	 * gesture, and proposing it would send a guaranteed cycle to the store just to have it
+	 * refused. Falling through to a placement instead is what the user meant. The store
+	 * still owns genuine cycle rejection - this only stops the canvas asking for one.
 	 */
 	function dropTargetAt(clientX, clientY, draggedId) {
 		const rect = viewport.getBoundingClientRect();
@@ -128,7 +146,7 @@
 		const y = (clientY - rect.top - view.y) / view.scale;
 		let best = null;
 		for (const box of lastBoxes) {
-			if (box.id === draggedId) {
+			if (box.id === draggedId || isInside(box, draggedId)) {
 				continue;
 			}
 			if (x >= box.x && x <= box.x + box.width && y >= box.y && y <= box.y + box.height) {
