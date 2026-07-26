@@ -37,3 +37,26 @@ export * from './work-order.ts';
 // Dispatching a work order to a coding agent, and the transient status of one run
 // (source-of-truth Feature 5, ADR-005).
 export * from './dispatch.ts';
+
+// The nine MCP tool payloads the standalone spec server exposes (ADR-006). Schemas only —
+// the SDK itself may never be imported into typings (`typings-only-imports-zod`).
+export * from './mcp-spec-tools.ts';
+
+// Fanning a parent module out to one child agent per sub-module. Cross-sibling integration
+// testing is reported as blocked on ADR open question 10, not silently omitted.
+export * from './orchestration.ts';
+
+// The `*.v6r` project manifest the canvas editor binds to (ADR-002). A pointer, not the model.
+export * from './v6r-manifest.ts';
+
+// Canvas geometry and `.vousoir/layout.json` — manual placements only (amended ADR-003).
+export * from './canvas-layout.ts';
+
+// The webview<->extension message protocol, validated on arrival at the extension.
+export * from './canvas-protocol.ts';
+
+// Spec completeness: the fact behind the canvas badge, derived from content not status.
+export * from './spec-completeness.ts';
+
+// The spec panel<->extension message protocol (M3), validated on arrival.
+export * from './spec-panel-protocol.ts';

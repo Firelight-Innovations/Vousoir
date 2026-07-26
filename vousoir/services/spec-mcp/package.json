@@ -1,0 +1,29 @@
+{
+  "name": "@vousoir/spec-mcp",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Standalone MCP stdio server over .vousoir/spec/ (ADR-006). Launched by an external agent via `claude mcp add`, not by the extension host — it works with Vousoir closed, which is what source-of-truth Feature 9 actually asks for.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "start": "node src/main.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@vousoir/shared": "workspace:*",
+    "@vousoir/typings": "workspace:*",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@types/node": "24.x",
+    "typescript": "^5.7.0",
+    "vitest": "^2.1.0"
+  }
+}

@@ -31,6 +31,11 @@
         "command": "vousoir.buildWithClaudeCode",
         "title": "Build with Claude Code...",
         "category": "Vousoir"
+      },
+      {
+        "command": "vousoir.showMcpRegistration",
+        "title": "Show MCP Registration Command...",
+        "category": "Vousoir"
       }
     ],
     "viewsContainers": {
@@ -50,12 +55,25 @@
           "type": "webview"
         }
       ]
-    }
+    },
+    "customEditors": [
+      {
+        "viewType": "vousoir.canvas",
+        "displayName": "Vousoir Canvas",
+        "priority": "default",
+        "selector": [
+          {
+            "filenamePattern": "*.v6r"
+          }
+        ]
+      }
+    ]
   },
   "scripts": {
     "compile": "node esbuild.mts",
     "watch": "node esbuild.mts --watch",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json",
+    "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
     "@vousoir/typings": "workspace:*",
@@ -63,6 +81,8 @@
   },
   "devDependencies": {
     "typescript": "^5.7.0",
-    "@types/node": "24.x"
+    "@types/node": "24.x",
+    "happy-dom": "^20.11.1",
+    "vitest": "^2.1.0"
   }
 }
