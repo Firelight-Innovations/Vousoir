@@ -98,10 +98,9 @@ a native module instead of printing a clear message.
     Write-Ok "pnpm $(pnpm --version)"
 
     # --- git core.longpaths -------------------------------------------------
-    # code-oss has paths deeper than Windows' 260-character MAX_PATH (the
-    # extensions/copilot test fixtures in particular). Without this, `git clone`
-    # succeeds but CHECKOUT FAILS partway with "Filename too long", leaving a
-    # half-populated working tree that looks like a corrupt repo.
+    # code-oss has paths deeper than Windows' 260-character MAX_PATH. Without
+    # this, `git clone` succeeds but CHECKOUT FAILS partway with "Filename too
+    # long", leaving a half-populated working tree that looks like a corrupt repo.
     $longPaths = git config --get core.longpaths 2>$null
     if ($longPaths -ne 'true') {
         Write-Warn "git core.longpaths is not enabled."

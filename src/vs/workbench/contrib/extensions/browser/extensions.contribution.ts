@@ -47,10 +47,9 @@ import { IUserDataProfilesService } from '../../../../platform/userDataProfile/c
 import { EditorPaneDescriptor, IEditorPaneRegistry } from '../../../browser/editor.js';
 import { Extensions as ConfigurationMigrationExtensions, IConfigurationMigrationRegistry } from '../../../common/configuration.js';
 import { IsSessionsWindowContext, ResourceContextKey, WorkbenchStateContext } from '../../../common/contextkeys.js';
-import { IWorkbenchContribution, IWorkbenchContributionsRegistry, registerWorkbenchContribution2, Extensions as WorkbenchExtensions, WorkbenchPhase } from '../../../common/contributions.js';
+import { IWorkbenchContribution, IWorkbenchContributionsRegistry, Extensions as WorkbenchExtensions } from '../../../common/contributions.js';
 import { EditorExtensions } from '../../../common/editor.js';
 import { IViewContainersRegistry, Extensions as ViewContainerExtensions, ViewContainerLocation } from '../../../common/views.js';
-import { DEFAULT_ACCOUNT_SIGN_IN_COMMAND } from '../../../services/accounts/browser/defaultAccount.js';
 import { IEditorService } from '../../../services/editor/common/editorService.js';
 import { EnablementState, IExtensionManagementServerService, IPublisherInfo, IWorkbenchExtensionEnablementService, IWorkbenchExtensionManagementService } from '../../../services/extensionManagement/common/extensionManagement.js';
 import { IExtensionIgnoredRecommendationsService, IExtensionRecommendationsService } from '../../../services/extensionRecommendations/common/extensionRecommendations.js';
@@ -62,8 +61,6 @@ import { IPreferencesService } from '../../../services/preferences/common/prefer
 import { CONTEXT_SYNC_ENABLEMENT } from '../../../services/userDataSync/common/userDataSync.js';
 import { IViewsService } from '../../../services/views/common/viewsService.js';
 import { WORKSPACE_TRUST_EXTENSION_SUPPORT } from '../../../services/workspaces/common/workspaceTrust.js';
-import { IPluginInstallService } from '../../chat/common/plugins/pluginInstallService.js';
-import { ILanguageModelToolsService } from '../../chat/common/tools/languageModelToolsService.js';
 import { CONTEXT_KEYBINDINGS_EDITOR } from '../../preferences/common/preferences.js';
 import { IWebview } from '../../webview/browser/webview.js';
 import { Query } from '../common/extensionQuery.js';
@@ -71,7 +68,6 @@ import { AutoRestartConfigurationKey, AutoUpdateConfigurationKey, CONTEXT_EXTENS
 import { ExtensionsConfigurationSchema, ExtensionsConfigurationSchemaId } from '../common/extensionsFileTemplate.js';
 import { ExtensionsInput } from '../common/extensionsInput.js';
 import { KeymapExtensions } from '../common/extensionsUtils.js';
-import { SearchExtensionsTool, SearchExtensionsToolData } from '../common/searchExtensionsTool.js';
 import { ExtensionEditor } from './extensionEditor.js';
 import { ExtensionEnablementWorkspaceTrustTransitionParticipant } from './extensionEnablementWorkspaceTrustTransitionParticipant.js';
 import { ExtensionRecommendationNotificationService } from './extensionRecommendationNotificationService.js';
@@ -142,7 +138,7 @@ Registry.as<IConfigurationRegistry>(ConfigurationExtensions.Configuration)
 					localize('extensions.autoUpdate.on', 'Download and install updates automatically only for enabled extensions.'),
 					localize('extensions.autoUpdate.off', 'Extensions are not automatically updated.'),
 				],
-				description: localize('extensions.autoUpdate', "Controls the automatic update behavior of extensions. The updates are fetched from a Microsoft online service."),
+				description: localize('extensions.autoUpdate', "Controls the automatic update behavior of extensions. The updates are fetched from an online service."),
 				default: 'on',
 				scope: ConfigurationScope.APPLICATION,
 				tags: ['usesOnlineServices'],
@@ -153,7 +149,7 @@ Registry.as<IConfigurationRegistry>(ConfigurationExtensions.Configuration)
 					localization: {
 						description: {
 							key: 'extensions.autoUpdate',
-							value: localize('extensions.autoUpdate', "Controls the automatic update behavior of extensions. The updates are fetched from a Microsoft online service."),
+							value: localize('extensions.autoUpdate', "Controls the automatic update behavior of extensions. The updates are fetched from an online service."),
 						},
 						enumDescriptions: [
 							{
@@ -188,7 +184,7 @@ Registry.as<IConfigurationRegistry>(ConfigurationExtensions.Configuration)
 			},
 			'extensions.autoCheckUpdates': {
 				type: 'boolean',
-				description: localize('extensionsCheckUpdates', "When enabled, automatically checks extensions for updates. If an extension has an update, it is marked as outdated in the Extensions view. The updates are fetched from a Microsoft online service."),
+				description: localize('extensionsCheckUpdates', "When enabled, automatically checks extensions for updates. If an extension has an update, it is marked as outdated in the Extensions view. The updates are fetched from an online service."),
 				default: true,
 				scope: ConfigurationScope.APPLICATION,
 				tags: ['usesOnlineServices']
@@ -420,17 +416,17 @@ CommandsRegistry.registerCommand({
 					'properties': {
 						'installOnlyNewlyAddedFromExtensionPackVSIX': {
 							'type': 'boolean',
-							'description': localize('workbench.extensions.installExtension.option.installOnlyNewlyAddedFromExtensionPackVSIX', "When enabled, VS Code installs only newly added extensions from the extension pack VSIX. This option is considered only while installing a VSIX."),
+							'description': localize('workbench.extensions.installExtension.option.installOnlyNewlyAddedFromExtensionPackVSIX', "When enabled, Vousoir installs only newly added extensions from the extension pack VSIX. This option is considered only while installing a VSIX."),
 							default: false
 						},
 						'installPreReleaseVersion': {
 							'type': 'boolean',
-							'description': localize('workbench.extensions.installExtension.option.installPreReleaseVersion', "When enabled, VS Code installs the pre-release version of the extension if available."),
+							'description': localize('workbench.extensions.installExtension.option.installPreReleaseVersion', "When enabled, Vousoir installs the pre-release version of the extension if available."),
 							default: false
 						},
 						'donotSync': {
 							'type': 'boolean',
-							'description': localize('workbench.extensions.installExtension.option.donotSync', "When enabled, VS Code do not sync this extension when Settings Sync is on."),
+							'description': localize('workbench.extensions.installExtension.option.donotSync', "When enabled, Vousoir do not sync this extension when Settings Sync is on."),
 							default: false
 						},
 						'justification': {
@@ -605,7 +601,6 @@ class ExtensionsContributions extends Disposable implements IWorkbenchContributi
 		@IDialogService private readonly dialogService: IDialogService,
 		@ICommandService private readonly commandService: ICommandService,
 		@IProductService private readonly productService: IProductService,
-		@IPluginInstallService private readonly pluginInstallService: IPluginInstallService,
 	) {
 		super();
 		const hasLocalServerContext = CONTEXT_HAS_LOCAL_SERVER.bindTo(contextKeyService);
@@ -748,14 +743,11 @@ class ExtensionsContributions extends Disposable implements IWorkbenchContributi
 				order: 1
 			}],
 			run: async () => {
-				const [, pluginResult] = await Promise.all([
-					this.extensionsWorkbenchService.checkForUpdates(),
-					this.pluginInstallService.updateAllPlugins({ silent: true }, CancellationToken.None),
-				]);
+				await this.extensionsWorkbenchService.checkForUpdates();
 				const outdated = this.extensionsWorkbenchService.outdated;
 				if (outdated.length) {
 					return this.extensionsWorkbenchService.openSearch('@outdated ');
-				} else if (pluginResult.updatedNames.length === 0 && pluginResult.failedNames.length === 0) {
+				} else {
 					return this.dialogService.info(localize('noUpdatesAvailable', "All extensions are up to date."));
 				}
 			}
@@ -955,8 +947,8 @@ class ExtensionsContributions extends Disposable implements IWorkbenchContributi
 				if (requireReload) {
 					notificationService.prompt(
 						Severity.Info,
-						vsixs.length > 1 ? localize('InstallVSIXs.successReload', "Completed installing extensions. Please reload Visual Studio Code to enable them.")
-							: localize('InstallVSIXAction.successReload', "Completed installing extension. Please reload Visual Studio Code to enable it."),
+						vsixs.length > 1 ? localize('InstallVSIXs.successReload', "Completed installing extensions. Please reload Vousoir to enable them.")
+							: localize('InstallVSIXAction.successReload', "Completed installing extension. Please reload Vousoir to enable it."),
 						[{
 							label: localize('InstallVSIXAction.reloadNow', "Reload Now"),
 							run: () => hostService.reload()
@@ -2075,21 +2067,6 @@ class TrustedPublishersInitializer implements IWorkbenchContribution {
 	}
 }
 
-class ExtensionToolsContribution extends Disposable implements IWorkbenchContribution {
-
-	static readonly ID = 'extensions.chat.toolsContribution';
-
-	constructor(
-		@ILanguageModelToolsService toolsService: ILanguageModelToolsService,
-		@IInstantiationService instantiationService: IInstantiationService,
-	) {
-		super();
-		const searchExtensionsTool = instantiationService.createInstance(SearchExtensionsTool);
-		this._register(toolsService.registerTool(SearchExtensionsToolData, searchExtensionsTool));
-		this._register(toolsService.vscodeToolSet.addTool(SearchExtensionsToolData));
-	}
-}
-
 const workbenchRegistry = Registry.as<IWorkbenchContributionsRegistry>(WorkbenchExtensions.Workbench);
 workbenchRegistry.registerWorkbenchContribution(ExtensionsContributions, LifecyclePhase.Restored);
 workbenchRegistry.registerWorkbenchContribution(StatusUpdater, LifecyclePhase.Eventually);
@@ -2107,23 +2084,6 @@ if (isWeb) {
 	workbenchRegistry.registerWorkbenchContribution(ExtensionStorageCleaner, LifecyclePhase.Eventually);
 }
 
-registerWorkbenchContribution2(ExtensionToolsContribution.ID, ExtensionToolsContribution, WorkbenchPhase.AfterRestored);
-
-registerAction2(class ExtensionsGallerySignInAction extends Action2 {
-	constructor() {
-		super({
-			id: 'workbench.extensions.actions.gallery.signIn',
-			title: localize2('signInToMarketplace', 'Sign in to access Extensions Marketplace'),
-			menu: {
-				id: MenuId.AccountsContext,
-				when: CONTEXT_EXTENSIONS_GALLERY_STATUS.isEqualTo(ExtensionGalleryManifestStatus.RequiresSignIn)
-			},
-		});
-	}
-	run(accessor: ServicesAccessor): Promise<void> {
-		return accessor.get(ICommandService).executeCommand(DEFAULT_ACCOUNT_SIGN_IN_COMMAND);
-	}
-});
 
 Registry.as<IConfigurationMigrationRegistry>(ConfigurationMigrationExtensions.ConfigurationMigration)
 	.registerConfigurationMigrations([{

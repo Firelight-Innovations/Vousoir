@@ -165,7 +165,7 @@ export class NativeExtensionService extends AbstractExtensionService implements 
 					Severity.Error,
 					nls.localize('extensionService.versionMismatchCrash', "Extension host cannot start: version mismatch."),
 					[{
-						label: nls.localize('relaunch', "Relaunch VS Code"),
+						label: nls.localize('relaunch', "Relaunch Vousoir"),
 						run: () => {
 							this._instantiationService.invokeFunction((accessor) => {
 								const hostService = accessor.get(IHostService);
@@ -216,7 +216,7 @@ export class NativeExtensionService extends AbstractExtensionService implements 
 						run: () => {
 							this._instantiationService.invokeFunction(accessor => {
 								const openerService = accessor.get(IOpenerService);
-								openerService.open('https://aka.ms/vscode-extension-bisect');
+								openerService.open('https://github.com/Firelight-Innovations/Vousoir');
 							});
 						}
 					});

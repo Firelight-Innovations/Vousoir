@@ -179,21 +179,21 @@ export const schema: IJSONSchema = {
 			properties: {
 				'vscode': {
 					type: 'string',
-					description: nls.localize('vscode.extension.engines.vscode', 'For VS Code extensions, specifies the VS Code version that the extension is compatible with. Cannot be *. For example: ^1.105.0 indicates compatibility with a minimum VS Code version of 1.105.0.'),
+					description: nls.localize('vscode.extension.engines.vscode', 'For Vousoir extensions, specifies the Vousoir version that the extension is compatible with. Cannot be *. For example: ^1.105.0 indicates compatibility with a minimum Vousoir version of 1.105.0.'),
 					default: '^1.105.0',
 				}
 			}
 		},
 		publisher: {
-			description: nls.localize('vscode.extension.publisher', 'The publisher of the VS Code extension.'),
+			description: nls.localize('vscode.extension.publisher', 'The publisher of the Vousoir extension.'),
 			type: 'string'
 		},
 		displayName: {
-			description: nls.localize('vscode.extension.displayName', 'The display name for the extension used in the VS Code gallery.'),
+			description: nls.localize('vscode.extension.displayName', 'The display name for the extension used in the Vousoir gallery.'),
 			type: 'string'
 		},
 		categories: {
-			description: nls.localize('vscode.extension.categories', 'The categories used by the VS Code gallery to categorize the extension.'),
+			description: nls.localize('vscode.extension.categories', 'The categories used by the Vousoir gallery to categorize the extension.'),
 			type: 'array',
 			uniqueItems: true,
 			items: {
@@ -210,10 +210,10 @@ export const schema: IJSONSchema = {
 		},
 		galleryBanner: {
 			type: 'object',
-			description: nls.localize('vscode.extension.galleryBanner', 'Banner used in the VS Code marketplace.'),
+			description: nls.localize('vscode.extension.galleryBanner', 'Banner used in the Vousoir marketplace.'),
 			properties: {
 				color: {
-					description: nls.localize('vscode.extension.galleryBanner.color', 'The banner color on the VS Code marketplace page header.'),
+					description: nls.localize('vscode.extension.galleryBanner.color', 'The banner color on the Vousoir marketplace page header.'),
 					type: 'string'
 				},
 				theme: {
@@ -224,7 +224,7 @@ export const schema: IJSONSchema = {
 			}
 		},
 		contributes: {
-			description: nls.localize('vscode.extension.contributes', 'All contributions of the VS Code extension represented by this package.'),
+			description: nls.localize('vscode.extension.contributes', 'All contributions of the Vousoir extension represented by this package.'),
 			type: 'object',
 			// eslint-disable-next-line local/code-no-any-casts
 			properties: {
@@ -241,7 +241,7 @@ export const schema: IJSONSchema = {
 			deprecationMessage: nls.localize('vscode.extension.enableProposedApi.deprecated', 'Use `enabledApiProposals` instead.'),
 		},
 		enabledApiProposals: {
-			markdownDescription: nls.localize('vscode.extension.enabledApiProposals', 'Enable API proposals to try them out. Only valid **during development**. Extensions **cannot be published** with this property. For more details visit: https://code.visualstudio.com/api/advanced-topics/using-proposed-api'),
+			markdownDescription: nls.localize('vscode.extension.enabledApiProposals', 'Enable API proposals to try them out. Only valid **during development**. Extensions **cannot be published** with this property.'),
 			type: 'array',
 			uniqueItems: true,
 			items: {
@@ -251,7 +251,7 @@ export const schema: IJSONSchema = {
 			}
 		},
 		api: {
-			markdownDescription: nls.localize('vscode.extension.api', 'Describe the API provided by this extension. For more details visit: https://code.visualstudio.com/api/advanced-topics/remote-extensions#handling-dependencies-with-remote-extensions'),
+			markdownDescription: nls.localize('vscode.extension.api', 'Describe the API provided by this extension.'),
 			type: 'string',
 			enum: ['none'],
 			enumDescriptions: [
@@ -259,7 +259,7 @@ export const schema: IJSONSchema = {
 			]
 		},
 		activationEvents: {
-			description: nls.localize('vscode.extension.activationEvents', 'Activation events for the VS Code extension.'),
+			description: nls.localize('vscode.extension.activationEvents', 'Activation events for the Vousoir extension.'),
 			type: 'array',
 			items: {
 				type: 'string',
@@ -426,7 +426,7 @@ export const schema: IJSONSchema = {
 					},
 					{
 						label: '*',
-						description: nls.localize('vscode.extension.activationEvents.star', 'An activation event emitted on VS Code startup. To ensure a great end user experience, please use this activation event in your extension only when no other activation events combination works in your use-case.'),
+						description: nls.localize('vscode.extension.activationEvents.star', 'An activation event emitted on Vousoir startup. To ensure a great end user experience, please use this activation event in your extension only when no other activation events combination works in your use-case.'),
 						body: '*'
 					}
 				],
@@ -607,11 +607,11 @@ export const schema: IJSONSchema = {
 			type: 'object',
 			properties: {
 				'vscode:prepublish': {
-					description: nls.localize('vscode.extension.scripts.prepublish', 'Script executed before the package is published as a VS Code extension.'),
+					description: nls.localize('vscode.extension.scripts.prepublish', 'Script executed before the package is published as a Vousoir extension.'),
 					type: 'string'
 				},
 				'vscode:uninstall': {
-					description: nls.localize('vscode.extension.scripts.uninstall', 'Uninstall hook for VS Code extension. Script that gets executed when the extension is completely uninstalled from VS Code which is when VS Code is restarted (shutdown and start) after the extension is uninstalled. Only Node scripts are supported.'),
+					description: nls.localize('vscode.extension.scripts.uninstall', 'Uninstall hook for Vousoir extension. Script that gets executed when the extension is completely uninstalled from Vousoir which is when Vousoir is restarted (shutdown and start) after the extension is uninstalled. Only Node scripts are supported.'),
 					type: 'string'
 				}
 			}
@@ -632,7 +632,7 @@ export const schema: IJSONSchema = {
 		},
 		pricing: {
 			type: 'string',
-			markdownDescription: nls.localize('vscode.extension.pricing', 'The pricing information for the extension. Can be Free (default) or Trial. For more details visit: https://code.visualstudio.com/api/working-with-extensions/publishing-extension#extension-pricing-label'),
+			markdownDescription: nls.localize('vscode.extension.pricing', 'The pricing information for the extension. Can be Free (default) or Trial.'),
 			enum: ['Free', 'Trial'],
 			default: 'Free'
 		}

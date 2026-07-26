@@ -157,14 +157,12 @@ jobs:
             compile-extension:css-language-features-server `
             compile-extension:emmet `
             compile-extension:git `
-            compile-extension:github-authentication `
             compile-extension:html-language-features-server `
             compile-extension:ipynb `
             compile-extension:notebook-renderers `
             compile-extension:json-language-features-server `
             compile-extension:markdown-language-features `
             compile-extension-media `
-            compile-extension:microsoft-authentication `
             compile-extension:typescript-language-features `
             compile-extension:vscode-api-tests `
             compile-extension:vscode-colorize-tests `
@@ -211,11 +209,6 @@ jobs:
         if: ${{ inputs.smoke_tests }}
         working-directory: test/smoke
         shell: pwsh
-        run: npm run compile
-
-      - name: Compile Copilot Chat extension for smoke tests
-        if: ${{ inputs.smoke_tests }}
-        working-directory: extensions/copilot
         run: npm run compile
 
       - name: Diagnostics before smoke test run

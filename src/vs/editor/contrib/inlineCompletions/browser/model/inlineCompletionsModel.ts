@@ -7,7 +7,7 @@ import { mapFindFirst } from '../../../../../base/common/arraysFind.js';
 import { arrayEqualsC } from '../../../../../base/common/equals.js';
 import { BugIndicatingError, onUnexpectedExternalError } from '../../../../../base/common/errors.js';
 import { Emitter } from '../../../../../base/common/event.js';
-import { Disposable, DisposableStore } from '../../../../../base/common/lifecycle.js';
+import { Disposable } from '../../../../../base/common/lifecycle.js';
 import { IObservable, IObservableWithChange, IReader, ITransaction, autorun, constObservable, derived, derivedHandleChanges, derivedOpts, mapObservableArrayCached, observableFromEvent, observableSignal, observableValue, recomputeInitiallyAndOnChange, subtransaction, transaction } from '../../../../../base/common/observable.js';
 import { firstNonWhitespaceIndex } from '../../../../../base/common/strings.js';
 import { isDefined } from '../../../../../base/common/types.js';
@@ -50,8 +50,6 @@ import { TypingInterval } from './typingSpeed.js';
 import { StringReplacement } from '../../../../common/core/edits/stringEdit.js';
 import { OffsetRange } from '../../../../common/core/ranges/offsetRange.js';
 import { URI } from '../../../../../base/common/uri.js';
-import { IDefaultAccountService } from '../../../../../platform/defaultAccount/common/defaultAccount.js';
-import { IDefaultAccount } from '../../../../../base/common/defaultAccount.js';
 import { Schemas } from '../../../../../base/common/network.js';
 import { getInlineCompletionsController } from '../controller/common.js';
 
@@ -120,7 +118,6 @@ export class InlineCompletionsModel extends Disposable {
 		@ILanguageFeaturesService private readonly _languageFeaturesService: ILanguageFeaturesService,
 		@ICodeEditorService private readonly _codeEditorService: ICodeEditorService,
 		@IInlineCompletionsService private readonly _inlineCompletionsService: IInlineCompletionsService,
-		@IDefaultAccountService defaultAccountService: IDefaultAccountService,
 	) {
 		super();
 		this._source = this._register(this._instantiationService.createInstance(InlineCompletionsSource, this.textModel, this._textModelVersionId, this._debounceValue, this.primaryPosition));
@@ -145,8 +142,6 @@ export class InlineCompletionsModel extends Disposable {
 		const snippetController = SnippetController2.get(this._editor);
 		this._isInSnippetMode = snippetController?.isInSnippetObservable ?? constObservable(false);
 
-		defaultAccountService.getDefaultAccount().then(createDisposableCb(account => this.sku.set(skuFromAccount(account), undefined), this._store));
-		this._register(defaultAccountService.onDidChangeDefaultAccount(account => this.sku.set(skuFromAccount(account), undefined)));
 
 		this._typing = this._register(new TypingInterval(this.textModel));
 
@@ -1315,31 +1310,3 @@ export function isSuggestionInViewport(editor: ICodeEditor, suggestion: InlineSu
 	return viewportRange.containsRange(targetRange);
 }
 
-function skuFromAccount(account: IDefaultAccount | null): InlineSuggestSku | undefined {
-	if (account?.entitlementsData?.access_type_sku && account?.entitlementsData?.copilot_plan) {
-		return { type: account.entitlementsData.access_type_sku, plan: account.entitlementsData.copilot_plan };
-	}
-	return undefined;
-}
-
-class DisposableCallback<T> {
-	private _cb: ((e: T) => void) | undefined;
-
-	constructor(cb: (e: T) => void) {
-		this._cb = cb;
-	}
-
-	dispose(): void {
-		this._cb = undefined;
-	}
-
-	readonly handler = (val: T) => {
-		return this._cb?.(val);
-	};
-}
-
-function createDisposableCb<T>(cb: (e: T) => void, store: DisposableStore): (e: T) => void {
-	const dcb = new DisposableCallback(cb);
-	store.add(dcb);
-	return dcb.handler;
-}

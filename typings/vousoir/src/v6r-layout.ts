@@ -1,5 +1,5 @@
 /**
- * The `.v6r/` folder layout (work order §8): the per-repo project-data folder every
+ * The `.vousoir/` folder layout (work order §8): the per-repo project-data folder every
  * repository used with Vousoir gets at its root. Everything repo-specific lives here so
  * a collaborator cloning the repo sees the full project state with no external database.
  *
@@ -9,9 +9,9 @@
  */
 
 /** The literal directory name every Vousoir-managed repository gets at its root. */
-export const V6R_ROOT_DIRNAME = '.v6r' as const;
+export const V6R_ROOT_DIRNAME = '.vousoir' as const;
 
-/** The five subdirectories under `.v6r/`, keyed by their role. */
+/** The five subdirectories under `.vousoir/`, keyed by their role. */
 export const V6R_SUBDIRS = {
 	/** Module tree: one .md (YAML frontmatter) node per file, nested folders mirror the hierarchy. */
 	spec: 'spec',
@@ -34,8 +34,17 @@ export const V6R_COMMITTED_SUBDIRS: readonly V6rSubdirKey[] = ['spec', 'whiteboa
 /** Subdirectories that hold only derived data and are therefore gitignored. */
 export const V6R_GITIGNORED_SUBDIRS: readonly V6rSubdirKey[] = ['cache'];
 
-/** Filename of the `.gitignore` that ships inside every scaffolded `.v6r/`. */
+/**
+ * Subdirectory of `cache/` holding compiled work orders. They live under the one
+ * gitignored subdir because they are derived: every work order is regenerable from the
+ * spec node that produced it, so committing them would put churn in git for a file no
+ * human authored. Declared here rather than at the compiler's call site, for the same
+ * reason the five subdirs are — a layout name must have exactly one home.
+ */
+export const V6R_WORK_ORDERS_DIRNAME = 'work-orders' as const;
+
+/** Filename of the `.gitignore` that ships inside every scaffolded `.vousoir/`. */
 export const V6R_GITIGNORE_FILENAME = '.gitignore' as const;
 
-/** Contents of `.v6r/.gitignore`: ignore only the derived cache. */
+/** Contents of `.vousoir/.gitignore`: ignore only the derived cache. */
 export const V6R_GITIGNORE_CONTENTS = `${V6R_SUBDIRS.cache}/\n`;

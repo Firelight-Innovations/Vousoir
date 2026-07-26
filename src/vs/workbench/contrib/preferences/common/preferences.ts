@@ -12,7 +12,6 @@ import { RawContextKey } from '../../../../platform/contextkey/common/contextkey
 import { IExtensionGalleryService, IGalleryExtension } from '../../../../platform/extensionManagement/common/extensionManagement.js';
 import { createDecorator } from '../../../../platform/instantiation/common/instantiation.js';
 import { IProductService } from '../../../../platform/product/common/productService.js';
-import { IChatEntitlementService } from '../../../services/chat/common/chatEntitlementService.js';
 import { ISearchResult, ISettingsEditorModel } from '../../../services/preferences/common/preferences.js';
 
 export interface IWorkbenchSettingsConfiguration {
@@ -41,7 +40,6 @@ export interface IPreferencesSearchService {
 
 	getLocalSearchProvider(filter: string): ISearchProvider;
 	getRemoteSearchProvider(filter: string, newExtensionsOnly?: boolean): ISearchProvider | undefined;
-	getAiSearchProvider(filter: string): IAiSearchProvider | undefined;
 }
 
 export interface ISearchProvider {
@@ -50,10 +48,6 @@ export interface ISearchProvider {
 
 export interface IRemoteSearchProvider extends ISearchProvider {
 	setFilter(filter: string): void;
-}
-
-export interface IAiSearchProvider extends IRemoteSearchProvider {
-	getLLMRankedResults(token: CancellationToken): Promise<ISearchResult | null>;
 }
 
 export const PREFERENCES_EDITOR_COMMAND_OPEN = 'workbench.preferences.action.openPreferencesEditor';
@@ -120,8 +114,6 @@ export const EXTENSION_FETCH_TIMEOUT_MS = 1000;
 export const STRING_MATCH_SEARCH_PROVIDER_NAME = 'local';
 export const TF_IDF_SEARCH_PROVIDER_NAME = 'tfIdf';
 export const FILTER_MODEL_SEARCH_PROVIDER_NAME = 'filterModel';
-export const EMBEDDINGS_SEARCH_PROVIDER_NAME = 'embeddingsFull';
-export const LLM_RANKED_SEARCH_PROVIDER_NAME = 'llmRanked';
 
 export enum WorkbenchSettingsEditorSettings {
 	ShowAISearchToggle = 'workbench.settings.showAISearchToggle',
@@ -136,7 +128,6 @@ export type ExtensionToggleData = {
 let cachedExtensionToggleData: ExtensionToggleData | undefined;
 
 export async function getExperimentalExtensionToggleData(
-	chatEntitlementService: IChatEntitlementService,
 	extensionGalleryService: IExtensionGalleryService,
 	productService: IProductService,
 ): Promise<ExtensionToggleData | undefined> {
@@ -145,10 +136,6 @@ export async function getExperimentalExtensionToggleData(
 	}
 
 	if (!extensionGalleryService.isEnabled()) {
-		return undefined;
-	}
-
-	if (chatEntitlementService.sentiment.hidden || chatEntitlementService.sentiment.disabled) {
 		return undefined;
 	}
 

@@ -236,7 +236,7 @@ export class NativeWindow extends BaseWindow {
 				},
 				{
 					label: localize('learnMore', "Learn More"),
-					run: () => this.openerService.open('https://go.microsoft.com/fwlink/?linkid=2149667')
+					run: () => this.openerService.open('https://github.com/Firelight-Innovations/Vousoir')
 				}]
 			);
 		});
@@ -248,7 +248,7 @@ export class NativeWindow extends BaseWindow {
 				localize('keychainWriteError', "Writing login information to the keychain failed with error '{0}'.", message),
 				[{
 					label: localize('troubleshooting', "Troubleshooting Guide"),
-					run: () => this.openerService.open('https://go.microsoft.com/fwlink/?linkid=2190713')
+					run: () => this.openerService.open('https://github.com/Firelight-Innovations/Vousoir')
 				}]
 			);
 		});
@@ -261,8 +261,8 @@ export class NativeWindow extends BaseWindow {
 					label: localize('downloadArmBuild', "Download"),
 					run: () => {
 						const quality = this.productService.quality;
-						const stableURL = 'https://code.visualstudio.com/docs/?dv=osx';
-						const insidersURL = 'https://code.visualstudio.com/docs/?dv=osx&build=insiders';
+						const stableURL = 'https://github.com/Firelight-Innovations/Vousoir';
+						const insidersURL = 'https://github.com/Firelight-Innovations/Vousoir';
 						this.openerService.open(quality === 'stable' ? stableURL : insidersURL);
 					}
 				}],
@@ -771,7 +771,7 @@ export class NativeWindow extends BaseWindow {
 					message,
 					[{
 						label: localize('learnMore', "Learn More"),
-						run: () => this.openerService.open(URI.parse('https://aka.ms/vscode-faq-old-macOS'))
+						run: () => this.openerService.open(URI.parse('https://github.com/Firelight-Innovations/Vousoir'))
 					}],
 					{
 						neverShowAgain: { id: 'macoseol', isSecondary: true, scope: NeverShowAgainScope.APPLICATION },
@@ -789,7 +789,7 @@ export class NativeWindow extends BaseWindow {
 			location: ProgressLocation.Window,
 			delay: 1600,
 			buttons: [localize('learnMore', "Learn More")]
-		}, () => shellEnv, () => this.openerService.open('https://go.microsoft.com/fwlink/?linkid=2149667'));
+		}, () => shellEnv, () => this.openerService.open('https://github.com/Firelight-Innovations/Vousoir'));
 	}
 
 	async resolveExternalUri(uri: URI, options?: OpenOptions): Promise<IResolvedExternalUri | undefined> {

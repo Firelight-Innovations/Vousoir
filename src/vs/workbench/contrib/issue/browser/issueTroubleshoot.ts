@@ -257,7 +257,7 @@ class TroubleshootIssueService extends Disposable implements ITroubleshootIssueS
 			message: localize('troubleshoot issue', "Troubleshoot Issue"),
 			primaryButton: localize('download insiders', "Download {0} Insiders", this.productService.nameLong),
 			cancelButton: localize('report anyway', "Report Issue Anyway"),
-			detail: localize('ask to download insiders', "Please try to download and reproduce the issue in {0} insiders.", this.productService.nameLong),
+			detail: localize('ask to download insiders', "Please try to download and reproduce the issue in the latest version of {0}.", this.productService.nameLong),
 			custom: {
 				disableCloseAction: true,
 			}
@@ -267,7 +267,7 @@ class TroubleshootIssueService extends Disposable implements ITroubleshootIssueS
 			return undefined;
 		}
 
-		const opened = await this.openerService.open(URI.parse('https://aka.ms/vscode-insiders'));
+		const opened = await this.openerService.open(URI.parse('https://github.com/Firelight-Innovations/Vousoir/releases'));
 		if (!opened) {
 			return undefined;
 		}

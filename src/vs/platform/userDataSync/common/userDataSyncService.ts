@@ -27,7 +27,6 @@ import { PromptsSynchronizer } from './promptsSync/promptsSync.js';
 import { SettingsSynchroniser } from './settingsSync.js';
 import { SnippetsSynchroniser } from './snippetsSync.js';
 import { TasksSynchroniser } from './tasksSync.js';
-import { McpSynchroniser } from './mcpSync.js';
 import { UserDataProfilesManifestSynchroniser } from './userDataProfilesManifestSync.js';
 import {
 	ALL_SYNC_RESOURCES, createSyncHeaders, IUserDataManualSyncTask, IUserDataSyncResourceConflicts, IUserDataSyncResourceError,
@@ -563,7 +562,7 @@ export class UserDataSyncService extends Disposable implements IUserDataSyncServ
 
 	private async performActionWithProfileSynchronizer<T>(profileSynchronizer: ProfileSynchronizer, action: (synchroniser: IUserDataSynchroniser) => Promise<T | undefined>, disposables: DisposableStore): Promise<T | undefined> {
 		const allSynchronizers = [...profileSynchronizer.enabled, ...profileSynchronizer.disabled.reduce<(IUserDataSynchroniser & IDisposable)[]>((synchronizers, syncResource) => {
-			if (syncResource !== SyncResource.WorkspaceState) {
+			if (syncResource !== SyncResource.WorkspaceState && syncResource !== SyncResource.Mcp) {
 				synchronizers.push(disposables.add(profileSynchronizer.createSynchronizer(syncResource)));
 			}
 			return synchronizers;
@@ -707,7 +706,7 @@ class ProfileSynchronizer extends Disposable {
 				return;
 			}
 		}
-		if (syncResource === SyncResource.WorkspaceState) {
+		if (syncResource === SyncResource.WorkspaceState || syncResource === SyncResource.Mcp) {
 			return;
 		}
 		if (syncResource !== SyncResource.Profiles && this.profile.useDefaultFlags?.[syncResource]) {
@@ -733,14 +732,13 @@ class ProfileSynchronizer extends Disposable {
 		}
 	}
 
-	createSynchronizer(syncResource: Exclude<SyncResource, SyncResource.WorkspaceState>): IUserDataSynchroniser & IDisposable {
+	createSynchronizer(syncResource: Exclude<SyncResource, SyncResource.WorkspaceState | SyncResource.Mcp>): IUserDataSynchroniser & IDisposable {
 		switch (syncResource) {
 			case SyncResource.Settings: return this.instantiationService.createInstance(SettingsSynchroniser, this.profile, this.collection);
 			case SyncResource.Keybindings: return this.instantiationService.createInstance(KeybindingsSynchroniser, this.profile, this.collection);
 			case SyncResource.Snippets: return this.instantiationService.createInstance(SnippetsSynchroniser, this.profile, this.collection);
 			case SyncResource.Prompts: return this.instantiationService.createInstance(PromptsSynchronizer, this.profile, this.collection);
 			case SyncResource.Tasks: return this.instantiationService.createInstance(TasksSynchroniser, this.profile, this.collection);
-			case SyncResource.Mcp: return this.instantiationService.createInstance(McpSynchroniser, this.profile, this.collection);
 			case SyncResource.GlobalState: return this.instantiationService.createInstance(GlobalStateSynchroniser, this.profile, this.collection);
 			case SyncResource.Extensions: return this.instantiationService.createInstance(ExtensionsSynchroniser, this.profile, this.collection);
 			case SyncResource.Profiles: return this.instantiationService.createInstance(UserDataProfilesManifestSynchroniser, this.profile, this.collection);

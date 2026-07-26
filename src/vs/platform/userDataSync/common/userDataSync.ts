@@ -178,7 +178,7 @@ export const enum SyncResource {
 	Profiles = 'profiles',
 	WorkspaceState = 'workspaceState',
 }
-export const ALL_SYNC_RESOURCES: SyncResource[] = [SyncResource.Settings, SyncResource.Keybindings, SyncResource.Snippets, SyncResource.Prompts, SyncResource.Tasks, SyncResource.Extensions, SyncResource.GlobalState, SyncResource.Profiles, SyncResource.Mcp];
+export const ALL_SYNC_RESOURCES: SyncResource[] = [SyncResource.Settings, SyncResource.Keybindings, SyncResource.Snippets, SyncResource.Prompts, SyncResource.Tasks, SyncResource.Extensions, SyncResource.GlobalState, SyncResource.Profiles];
 
 export function getPathSegments(collection: string | undefined, ...paths: string[]): string[] {
 	return collection ? [collection, ...paths] : paths;

@@ -145,14 +145,12 @@ jobs:
             compile-extension:css-language-features-server \
             compile-extension:emmet \
             compile-extension:git \
-            compile-extension:github-authentication \
             compile-extension:html-language-features-server \
             compile-extension:ipynb \
             compile-extension:notebook-renderers \
             compile-extension:json-language-features-server \
             compile-extension:markdown-language-features \
             compile-extension-media \
-            compile-extension:microsoft-authentication \
             compile-extension:typescript-language-features \
             compile-extension:vscode-api-tests \
             compile-extension:vscode-colorize-tests \
@@ -183,11 +181,6 @@ jobs:
         working-directory: test/smoke
         run: npm run compile
 
-      - name: Compile Copilot Chat extension for smoke tests
-        if: ${{ inputs.smoke_tests }}
-        working-directory: extensions/copilot
-        run: npm run compile
-
       - name: Diagnostics before smoke test run
         if: ${{ inputs.smoke_tests && always() }}
         run: ps -ef
@@ -197,15 +190,6 @@ jobs:
         if: ${{ inputs.electron_tests && inputs.smoke_tests }}
         timeout-minutes: 20
         run: npm run smoketest-no-compile -- --tracing
-
-      - name: Install Squid for network-isolated smoke tests
-        if: ${{ inputs.electron_tests && inputs.smoke_tests }}
-        run: brew list squid >/dev/null 2>&1 || brew install squid
-
-      - name: 🧪 Run Agents Window smoke tests through macOS PAC proxy
-        if: ${{ inputs.electron_tests && inputs.smoke_tests }}
-        timeout-minutes: 40
-        run: bash test/smoke/scripts/run-agents-window-network-proxy.sh
 
       - name: 🧪 Run smoke tests (Browser, Chromium)
         if: ${{ inputs.browser_tests && inputs.smoke_tests }}

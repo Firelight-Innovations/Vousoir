@@ -33,8 +33,6 @@ import { isString } from '../../../../base/common/types.js';
 import { Delayer } from '../../../../base/common/async.js';
 import { IProductService } from '../../../../platform/product/common/productService.js';
 import { isWeb } from '../../../../base/common/platform.js';
-import { ChatEntitlementService, IChatEntitlementService } from '../../chat/common/chatEntitlementService.js';
-import { IDefaultAccountService } from '../../../../platform/defaultAccount/common/defaultAccount.js';
 
 const SOURCE = 'IWorkbenchExtensionEnablementService';
 
@@ -74,7 +72,6 @@ export class ExtensionEnablementService extends Disposable implements IWorkbench
 		@IConfigurationService private readonly configurationService: IConfigurationService,
 		@IExtensionManagementServerService private readonly extensionManagementServerService: IExtensionManagementServerService,
 		@IUserDataSyncEnablementService private readonly userDataSyncEnablementService: IUserDataSyncEnablementService,
-		@IDefaultAccountService private readonly defaultAccountService: IDefaultAccountService,
 		@IUserDataSyncAccountService private readonly userDataSyncAccountService: IUserDataSyncAccountService,
 		@ILifecycleService private readonly lifecycleService: ILifecycleService,
 		@INotificationService private readonly notificationService: INotificationService,
@@ -84,7 +81,6 @@ export class ExtensionEnablementService extends Disposable implements IWorkbench
 		@IWorkspaceTrustManagementService private readonly workspaceTrustManagementService: IWorkspaceTrustManagementService,
 		@IWorkspaceTrustRequestService private readonly workspaceTrustRequestService: IWorkspaceTrustRequestService,
 		@IExtensionManifestPropertiesService private readonly extensionManifestPropertiesService: IExtensionManifestPropertiesService,
-		@IChatEntitlementService private readonly chatEntitlementService: IChatEntitlementService,
 		@IInstantiationService instantiationService: IInstantiationService,
 		@ILogService private readonly logService: ILogService,
 		@IProductService productService: IProductService
@@ -147,46 +143,6 @@ export class ExtensionEnablementService extends Disposable implements IWorkbench
 				});
 			});
 		}
-
-		this.ensureChatExtensionInitialDisabledState();
-	}
-
-	private ensureChatExtensionInitialDisabledState(): void {
-		if (!this._chatExtensionId || this.environmentService.isSessionsWindow || this.environmentService.skipBuiltinExtensions?.some(id => id.toLowerCase() === this._chatExtensionId)) {
-			return;
-		}
-
-		const builtinChatExtensionEnablementMigrationKey = 'builtinChatExtensionEnablementMigration';
-		const builtinChatExtensionEnablementMigration = this.storageService.getBoolean(builtinChatExtensionEnablementMigrationKey, StorageScope.PROFILE) === true;
-		if (builtinChatExtensionEnablementMigration) {
-			return;
-		}
-
-		this.logService.debug('Running builtin chat extension enablement migration');
-		this.storageService.store(builtinChatExtensionEnablementMigrationKey, true, StorageScope.PROFILE, StorageTarget.MACHINE);
-		const context = (this.chatEntitlementService as ChatEntitlementService).context;
-		if (context) {
-			if (context.value.state.completed) {
-				// User has used chat features before
-				if (this._isDisabledGlobally({ id: this._chatExtensionId })) {
-					// User had specifically disabled the chat extension to disable AI features
-					if (this.configurationService.getValue('chat.disableAIFeatures') !== true) {
-						// Honor that choice by disabling AI features
-						this.logService.debug('Disabling AI features because builtin chat extension is disabled');
-						this.configurationService.updateValue('chat.disableAIFeatures', true)
-							.catch(err => this.logService.error('Failed to update chat.disableAIFeatures setting during builtin chat extension enablement migration', err));
-					}
-				}
-			} else {
-				try {
-					// User has not used chat features before so avoid activating the chat extension by disabling it
-					this.logService.debug('Disabling builtin chat extension as chat set up is not completed');
-					this._disableExtension({ id: this._chatExtensionId });
-				} catch (error) {
-					this.logService.error('Failed to disable builtin chat extension during enablement migration', error);
-				}
-			}
-		}
 	}
 
 	private get hasWorkspace(): boolean {
@@ -233,14 +189,9 @@ export class ExtensionEnablementService extends Disposable implements IWorkbench
 		}
 	}
 
-	private isDefaultOrSettingsSyncAuthProviderExtension(manifest: IExtensionManifest): boolean {
+	private isSettingsSyncAuthProviderExtension(manifest: IExtensionManifest): boolean {
 		if (!isAuthenticationProviderExtension(manifest)) {
 			return false;
-		}
-
-		const defaultAccountAuthProvider = this.defaultAccountService.getDefaultAccountAuthenticationProvider();
-		if (manifest.contributes!.authentication!.some(a => a.id === defaultAccountAuthProvider.id)) {
-			return true;
 		}
 
 		if (this.userDataSyncEnablementService.isEnabled() && this.userDataSyncAccountService.account &&
@@ -256,7 +207,7 @@ export class ExtensionEnablementService extends Disposable implements IWorkbench
 			throw new Error(localize('cannot disable language pack extension', "Cannot change enablement of {0} extension because it contributes language packs.", extension.manifest.displayName || extension.identifier.id));
 		}
 
-		if (this.isDefaultOrSettingsSyncAuthProviderExtension(extension.manifest)) {
+		if (this.isSettingsSyncAuthProviderExtension(extension.manifest)) {
 			throw new Error(localize('cannot disable settings sync auth extension', "Cannot change enablement of {0} extension because Settings Sync depends on it.", extension.manifest.displayName || extension.identifier.id));
 		}
 
@@ -300,7 +251,7 @@ export class ExtensionEnablementService extends Disposable implements IWorkbench
 			throw new Error(localize('noWorkspace', "No workspace."));
 		}
 
-		if (this.isDefaultOrSettingsSyncAuthProviderExtension(extension.manifest)) {
+		if (this.isSettingsSyncAuthProviderExtension(extension.manifest)) {
 			throw new Error(localize('cannot disable settings sync auth extension in workspace', "Cannot change enablement of {0} extension in workspace because Settings Sync depends on it.", extension.manifest.displayName || extension.identifier.id));
 		}
 	}
@@ -448,13 +399,6 @@ export class ExtensionEnablementService extends Disposable implements IWorkbench
 		let enablementState = computedEnablementStates.get(extension);
 		if (enablementState !== undefined) {
 			return enablementState;
-		}
-
-		// Ensure the chat extension is disabled in fresh profiles where chat setup is not completed.
-		// This is called here (in addition to the constructor) because on profile switch the
-		// enablement service is not recreated, but the storage scope changes to the new profile.
-		if (extension.identifier.id.toLowerCase() === this._chatExtensionId) {
-			this.ensureChatExtensionInitialDisabledState();
 		}
 
 		enablementState = this._getUserEnablementState(extension.identifier);

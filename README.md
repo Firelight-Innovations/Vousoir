@@ -2,8 +2,8 @@
 
 **An Agentic Development Environment (ADE), built on [code-oss](https://github.com/microsoft/vscode).**
 
-Vousoir is an agent development enviroment with a layer for working *with* agents rather
-than merely alongside them: a per-repo project-data folder (`.v6r/`) holding specs, whiteboards, and
+Vousoir is an agent development environment with a layer for working *with* agents rather
+than merely alongside them: a per-repo project-data folder (`.vousoir/`) holding specs, whiteboards, and
 committed agent traces, and a supervised service host for long-running local services.
 
 > **Status: v1 shell.** The shell is complete and runs. The canvas, spec tree, and agent runtime are
@@ -86,7 +86,7 @@ Vousoir/
 │  └─ …                     ~97 built-in extensions  (upstream)
 ├─ typings/vousoir/         @vousoir/typings — zod schemas + shared types
 ├─ vousoir/                 the Vousoir layer (isolated pnpm workspace)
-│  ├─ shared/               @vousoir/shared — .v6r scaffolding, helpers
+│  ├─ shared/               @vousoir/shared — .vousoir scaffolding, helpers
 │  ├─ services/
 │  │  ├─ service-host/      supervises spawned services
 │  │  └─ dummy-service/     reference service implementation
@@ -149,13 +149,13 @@ same names, and dependency-cruiser **cannot** catch that (it tracks imports, not
 failed". If a rule blocks you, the design is telling you something — **don't edit
 `.dependency-cruiser.cjs` or the ESLint ignores to get around it.**
 
-### The `.v6r/` folder
+### The `.vousoir/` folder
 
-Every repo opened with Vousoir gets a `.v6r/` at its root, so a collaborator who clones sees the full
+Every repo opened with Vousoir gets a `.vousoir/` at its root, so a collaborator who clones sees the full
 project state with no external database:
 
 ```
-.v6r/
+.vousoir/
 ├─ spec/          module tree, one Markdown node per file   [committed]
 ├─ whiteboards/   frontend/UX canvases                      [committed]
 ├─ traces/        one JSONL file per agent run              [committed]

@@ -24,10 +24,17 @@ module.exports = {
 			name: 'ext-imports-only-typings-and-shared',
 			comment:
 				'§7.1: extensions/vousoir-* may import @vousoir/typings and @vousoir/shared — and nothing else ' +
-				'from the vousoir/ or typings/ tree.',
+				'from the vousoir/ SOURCE tree. Third-party packages resolved through the workspace root ' +
+				'(vousoir/node_modules/...) are not the Vousoir layer and are not what this rule is about.',
 			severity: 'error',
 			from: { path: '^extensions/vousoir-' },
-			to: { path: '^(vousoir/|typings/)', pathNot: '^(typings/|vousoir/shared/)' },
+			// `node_modules/` is excluded because the pnpm workspace root IS `vousoir/`, so every
+			// third-party package an extension depends on resolves to a path under `vousoir/`.
+			// Without this, a devDependency like vitest reads as a Vousoir-layer import. The rule
+			// governs which SOURCE packages an extension may reach into; it was written before any
+			// extension had a dependency of its own, so this false positive was latent rather than
+			// new. Excluding a third-party path class relaxes no source boundary.
+			to: { path: '^(vousoir/|typings/)', pathNot: ['^(typings/|vousoir/shared/)', 'node_modules/'] },
 		},
 		{
 			name: 'vousoir-layer-not-import-core',
@@ -79,11 +86,17 @@ module.exports = {
 			name: 'no-orphans',
 			comment:
 				'§7.1: no orphan modules (files nothing imports) — dead code fails CI. Package public entry points ' +
-				'(index.ts / extension.ts) and type-declaration files are exempt: they are surfaces, not dead code.',
+				'(index.ts / extension.ts), type-declaration files, and webview assets under a vousoir extension\'s ' +
+				'media/ folder are exempt: they are surfaces, not dead code.',
 			severity: 'error',
 			from: {
 				orphan: true,
-				pathNot: ['(^|/)index\\.ts$', '(^|/)extension\\.ts$', '\\.d\\.ts$'],
+				// `extensions/vousoir-*/media/**` is the same category as extension.ts: an entry
+				// point the runtime loads rather than a module anything imports. A webview script
+				// is fetched by URL through `asWebviewUri` (ADR-004), so it can never have an
+				// incoming import edge — flagging it as dead code is a misclassification, not a
+				// boundary breach. This exempts one file class; it relaxes no boundary rule.
+				pathNot: ['(^|/)index\\.ts$', '(^|/)extension\\.ts$', '\\.d\\.ts$', '^extensions/vousoir-[^/]+/media/'],
 			},
 			to: {},
 		},

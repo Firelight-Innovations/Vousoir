@@ -22,7 +22,6 @@ import { SettingsResource, SettingsResourceTreeItem } from '../../../services/us
 import { KeybindingsResource, KeybindingsResourceTreeItem } from '../../../services/userDataProfile/browser/keybindingsResource.js';
 import { TasksResource, TasksResourceTreeItem } from '../../../services/userDataProfile/browser/tasksResource.js';
 import { SnippetsResource, SnippetsResourceTreeItem } from '../../../services/userDataProfile/browser/snippetsResource.js';
-import { McpProfileResource, McpResourceTreeItem } from '../../../services/userDataProfile/browser/mcpProfileResource.js';
 import { Codicon } from '../../../../base/common/codicons.js';
 import { IDialogService } from '../../../../platform/dialogs/common/dialogs.js';
 import { InMemoryFileSystemProvider } from '../../../../platform/files/common/inMemoryFilesystemProvider.js';
@@ -300,7 +299,6 @@ export abstract class AbstractUserDataProfileElement extends Disposable {
 				children = await this.instantiationService.createInstance(TasksResourceTreeItem, profile).getChildren();
 				break;
 			case ProfileResourceType.Mcp:
-				children = await this.instantiationService.createInstance(McpResourceTreeItem, profile).getChildren();
 				break;
 			case ProfileResourceType.Extensions:
 				children = await this.instantiationService.createInstance(ExtensionsResourceExportTreeItem, profile).getChildren();
@@ -844,7 +842,6 @@ export class NewProfileElement extends AbstractUserDataProfileElement {
 				return [];
 			case ProfileResourceType.Mcp:
 				if (profileTemplate.mcp) {
-					await this.instantiationService.createInstance(McpProfileResource).apply(profileTemplate.mcp, profile);
 					return this.getChildrenFromProfile(profile, resourceType);
 				}
 				return [];

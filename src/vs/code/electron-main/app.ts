@@ -36,10 +36,6 @@ import { DiagnosticsMainService, IDiagnosticsMainService } from '../../platform/
 import { DialogMainService, IDialogMainService } from '../../platform/dialogs/electron-main/dialogMainService.js';
 import { IEncryptionMainService } from '../../platform/encryption/common/encryptionService.js';
 import { EncryptionMainService } from '../../platform/encryption/electron-main/encryptionMainService.js';
-import { ipcBrowserViewChannelName } from '../../platform/browserView/common/browserView.js';
-import { ipcBrowserViewGroupChannelName } from '../../platform/browserView/common/browserViewGroup.js';
-import { BrowserViewMainService, IBrowserViewMainService } from '../../platform/browserView/electron-main/browserViewMainService.js';
-import { BrowserViewGroupMainService, IBrowserViewGroupMainService } from '../../platform/browserView/electron-main/browserViewGroupMainService.js';
 import { NativeParsedArgs } from '../../platform/environment/common/argv.js';
 import { IEnvironmentMainService } from '../../platform/environment/electron-main/environmentMainService.js';
 import { isLaunchedFromCli } from '../../platform/environment/node/argvHelper.js';
@@ -48,8 +44,6 @@ import { IExtensionHostStarter, ipcExtensionHostStarterChannelName } from '../..
 import { ExtensionHostStarter } from '../../platform/extensions/electron-main/extensionHostStarter.js';
 import { IExternalTerminalMainService } from '../../platform/externalTerminal/electron-main/externalTerminal.js';
 import { LinuxExternalTerminalService, MacExternalTerminalService, WindowsExternalTerminalService } from '../../platform/externalTerminal/node/externalTerminalService.js';
-import { ISandboxHelperMainService } from '../../platform/sandbox/electron-main/sandboxHelperService.js';
-import { SandboxHelperService } from '../../platform/sandbox/node/sandboxHelper.js';
 import { LOCAL_FILE_SYSTEM_CHANNEL_NAME } from '../../platform/files/common/diskFileSystemProviderClient.js';
 import { IFileService } from '../../platform/files/common/files.js';
 import { DiskFileSystemProviderChannel } from '../../platform/files/electron-main/diskFileSystemProviderServer.js';
@@ -106,9 +100,6 @@ import { IWorkspacesHistoryMainService, WorkspacesHistoryMainService } from '../
 import { WorkspacesMainService } from '../../platform/workspaces/electron-main/workspacesMainService.js';
 import { IWorkspacesManagementMainService, WorkspacesManagementMainService } from '../../platform/workspaces/electron-main/workspacesManagementMainService.js';
 import { IPolicyService } from '../../platform/policy/common/policy.js';
-import { INativeManagedSettingsService, IFileManagedSettingsService } from '../../platform/policy/common/copilotManagedSettings.js';
-import { NativeManagedSettingsChannel } from '../../platform/policy/common/nativeManagedSettingsIpc.js';
-import { FileManagedSettingsChannel } from '../../platform/policy/common/fileManagedSettingsIpc.js';
 import { PolicyChannel } from '../../platform/policy/common/policyIpc.js';
 import { IUserDataProfilesMainService } from '../../platform/userDataProfile/electron-main/userDataProfile.js';
 import { IExtensionsProfileScannerService } from '../../platform/extensionManagement/common/extensionsProfileScannerService.js';
@@ -128,23 +119,15 @@ import { ipcUtilityProcessWorkerChannelName } from '../../platform/utilityProces
 import { ILocalPtyService, LocalReconnectConstants, TerminalIpcChannels, TerminalSettingId } from '../../platform/terminal/common/terminal.js';
 import { ElectronPtyHostStarter } from '../../platform/terminal/electron-main/electronPtyHostStarter.js';
 import { PtyHostService } from '../../platform/terminal/node/ptyHostService.js';
-import { ElectronAgentHostStarter } from '../../platform/agentHost/electron-main/electronAgentHostStarter.js';
-import { AgentHostProcessManager } from '../../platform/agentHost/node/agentHostService.js';
 import { NODE_REMOTE_RESOURCE_CHANNEL_NAME, NODE_REMOTE_RESOURCE_IPC_METHOD_NAME, NodeRemoteResourceResponse, NodeRemoteResourceRouter } from '../../platform/remote/common/electronRemoteResources.js';
 import { Lazy } from '../../base/common/lazy.js';
 import { IAuxiliaryWindowsMainService } from '../../platform/auxiliaryWindow/electron-main/auxiliaryWindows.js';
 import { AuxiliaryWindowsMainService } from '../../platform/auxiliaryWindow/electron-main/auxiliaryWindowsMainService.js';
 import { normalizeNFC } from '../../base/common/normalization.js';
 import { ICSSDevelopmentService, CSSDevelopmentService } from '../../platform/cssDev/node/cssDevService.js';
-import { INativeMcpDiscoveryHelperService, NativeMcpDiscoveryHelperChannelName } from '../../platform/mcp/common/nativeMcpDiscoveryHelper.js';
-import { NativeMcpDiscoveryHelperService } from '../../platform/mcp/node/nativeMcpDiscoveryHelperService.js';
-import { IMcpGatewayService, McpGatewayChannelName } from '../../platform/mcp/common/mcpGateway.js';
-import { McpGatewayService } from '../../platform/mcp/node/mcpGatewayService.js';
-import { McpGatewayChannel } from '../../platform/mcp/node/mcpGatewayChannel.js';
 import { IWebContentExtractorService } from '../../platform/webContentExtractor/common/webContentExtractor.js';
 import { NativeWebContentExtractorService } from '../../platform/webContentExtractor/electron-main/webContentExtractorService.js';
 import { AgentNetworkFilterService, IAgentNetworkFilterService } from '../../platform/networkFilter/common/networkFilterService.js';
-import { ITerminalSandboxService, NullTerminalSandboxService } from '../../platform/sandbox/common/terminalSandboxService.js';
 import ErrorTelemetry from '../../platform/telemetry/electron-main/errorTelemetry.js';
 
 type OSProxyConfigEvent = {
@@ -553,10 +536,6 @@ export class CodeApplication extends Disposable {
 
 			// Handle any in-page navigation
 			contents.on('will-navigate', event => {
-				if (BrowserViewMainService.isBrowserViewWebContents(contents)) {
-					return; // Allow navigation in integrated browser views
-				}
-
 				this.logService.error('webContents#will-navigate: Prevented webcontent navigation');
 
 				event.preventDefault(); // Prevent any in-page navigation
@@ -1183,8 +1162,6 @@ export class CodeApplication extends Disposable {
 		services.set(IEncryptionMainService, new SyncDescriptor(EncryptionMainService));
 
 		// Browser View
-		services.set(IBrowserViewMainService, new SyncDescriptor(BrowserViewMainService, undefined, false /* proxied to other processes */));
-		services.set(IBrowserViewGroupMainService, new SyncDescriptor(BrowserViewGroupMainService, undefined, false /* proxied to other processes */));
 
 		// Keyboard Layout
 		services.set(IKeyboardLayoutMainService, new SyncDescriptor(KeyboardLayoutMainService));
@@ -1200,7 +1177,6 @@ export class CodeApplication extends Disposable {
 		services.set(IMeteredConnectionService, meteredConnectionService);
 
 		// Web Contents Extractor
-		services.set(ITerminalSandboxService, new SyncDescriptor(NullTerminalSandboxService));
 		services.set(IAgentNetworkFilterService, new SyncDescriptor(AgentNetworkFilterService, undefined, true));
 		services.set(IWebContentExtractorService, new SyncDescriptor(NativeWebContentExtractorService, undefined, false /* proxied to other processes */));
 
@@ -1231,17 +1207,6 @@ export class CodeApplication extends Disposable {
 		);
 		services.set(ILocalPtyService, ptyHostService);
 
-		// Agent Host
-		// Always instantiate the starter + manager. They are cheap (the
-		// constructors only register an IPC listener and emitters) and the agent
-		// host utility process is spawned lazily on the first window connection
-		// request. The renderer is the gate: it only requests a connection when
-		// `chat.agentHost.enabled` resolves to `true` there (honoring experiment
-		// overrides + policy + web), which the main process cannot observe since
-		// experiment overrides are never persisted to `settings.json`.
-		const agentHostStarter = new ElectronAgentHostStarter({ machineId, sqmId, devDeviceId }, this.configurationService, this.environmentMainService, this.lifecycleMainService, this.logService);
-		this._register(new AgentHostProcessManager(agentHostStarter, this.logService, this.loggerService));
-
 		// External terminal
 		if (isWindows) {
 			services.set(IExternalTerminalMainService, new SyncDescriptor(WindowsExternalTerminalService));
@@ -1250,7 +1215,6 @@ export class CodeApplication extends Disposable {
 		} else if (isLinux) {
 			services.set(IExternalTerminalMainService, new SyncDescriptor(LinuxExternalTerminalService));
 		}
-		services.set(ISandboxHelperMainService, new SyncDescriptor(SandboxHelperService));
 
 		// Backups
 		const backupMainService = new BackupMainService(this.environmentMainService, this.configurationService, this.logService, this.stateService);
@@ -1290,8 +1254,6 @@ export class CodeApplication extends Disposable {
 		services.set(IProxyAuthService, new SyncDescriptor(ProxyAuthService));
 
 		// MCP
-		services.set(INativeMcpDiscoveryHelperService, new SyncDescriptor(NativeMcpDiscoveryHelperService));
-		services.set(IMcpGatewayService, new SyncDescriptor(McpGatewayService));
 
 		// Dev Only: CSS service (for ESM)
 		services.set(ICSSDevelopmentService, new SyncDescriptor(CSSDevelopmentService, undefined, true));
@@ -1325,11 +1287,7 @@ export class CodeApplication extends Disposable {
 		mainProcessElectronServer.registerChannel('policy', policyChannel);
 		sharedProcessClient.then(client => client.registerChannel('policy', policyChannel));
 
-		const nativeManagedSettingsChannel = disposables.add(new NativeManagedSettingsChannel(accessor.get(INativeManagedSettingsService)));
-		mainProcessElectronServer.registerChannel('nativeManagedSettings', nativeManagedSettingsChannel);
 
-		const fileManagedSettingsChannel = disposables.add(new FileManagedSettingsChannel(accessor.get(IFileManagedSettingsService)));
-		mainProcessElectronServer.registerChannel('fileManagedSettings', fileManagedSettingsChannel);
 
 		// Local Files
 		const diskFileSystemProvider = this.fileService.getProvider(Schemas.file);
@@ -1365,14 +1323,8 @@ export class CodeApplication extends Disposable {
 		mainProcessElectronServer.registerChannel('encryption', encryptionChannel);
 
 		// Browser View
-		const browserViewChannel = ProxyChannel.fromService(accessor.get(IBrowserViewMainService), disposables);
-		mainProcessElectronServer.registerChannel(ipcBrowserViewChannelName, browserViewChannel);
-		sharedProcessClient.then(client => client.registerChannel(ipcBrowserViewChannelName, browserViewChannel));
 
 		// Browser View Group
-		const browserViewGroupChannel = ProxyChannel.fromService(accessor.get(IBrowserViewGroupMainService), disposables);
-		mainProcessElectronServer.registerChannel(ipcBrowserViewGroupChannelName, browserViewGroupChannel);
-		sharedProcessClient.then(client => client.registerChannel(ipcBrowserViewGroupChannelName, browserViewGroupChannel));
 
 		// Signing
 		const signChannel = ProxyChannel.fromService(accessor.get(ISignService), disposables);
@@ -1425,15 +1377,7 @@ export class CodeApplication extends Disposable {
 		const externalTerminalChannel = ProxyChannel.fromService(accessor.get(IExternalTerminalMainService), disposables);
 		mainProcessElectronServer.registerChannel('externalTerminal', externalTerminalChannel);
 
-		// Sandbox Helper
-		const sandboxHelperChannel = ProxyChannel.fromService(accessor.get(ISandboxHelperMainService), disposables);
-		mainProcessElectronServer.registerChannel('sandboxHelper', sandboxHelperChannel);
-
 		// MCP
-		const mcpDiscoveryChannel = ProxyChannel.fromService(accessor.get(INativeMcpDiscoveryHelperService), disposables);
-		mainProcessElectronServer.registerChannel(NativeMcpDiscoveryHelperChannelName, mcpDiscoveryChannel);
-		const mcpGatewayChannel = this._register(new McpGatewayChannel(mainProcessElectronServer, accessor.get(IMcpGatewayService), accessor.get(ILoggerMainService)));
-		mainProcessElectronServer.registerChannel(McpGatewayChannelName, mcpGatewayChannel);
 
 		// Logger
 		const loggerChannel = this._register(new LoggerChannel(accessor.get(ILoggerMainService)));

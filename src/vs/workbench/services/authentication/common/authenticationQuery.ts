@@ -53,7 +53,6 @@ export interface IAccountQuery extends IBaseQuery {
 	 * @param mcpServerId The MCP server id
 	 * @returns An account-MCP server query interface
 	 */
-	mcpServer(mcpServerId: string): IAccountMcpServerQuery;
 
 	/**
 	 * Get operations for all extensions on this account
@@ -65,7 +64,6 @@ export interface IAccountQuery extends IBaseQuery {
 	 * Get operations for all MCP servers on this account
 	 * @returns An account-MCP servers query interface
 	 */
-	mcpServers(): IAccountMcpServersQuery;
 
 	/**
 	 * Get operations for all entities (extensions and MCP servers) on this account
@@ -142,63 +140,6 @@ export interface IAccountExtensionQuery extends IBaseQuery {
 /**
  * Query interface for operations on a specific MCP server within a specific account
  */
-export interface IAccountMcpServerQuery extends IBaseQuery {
-	readonly accountName: string;
-	readonly mcpServerId: string;
-
-	/**
-	 * Check if this MCP server is allowed to access this account
-	 * @returns True if allowed, false if denied, undefined if not yet decided
-	 */
-	isAccessAllowed(): boolean | undefined;
-
-	/**
-	 * Set access permission for this MCP server on this account
-	 * @param allowed True to allow, false to deny access
-	 * @param mcpServerName Optional MCP server name for display purposes
-	 */
-	setAccessAllowed(allowed: boolean, mcpServerName?: string): void;
-
-	/**
-	 * Add usage record for this MCP server on this account
-	 * @param scopes The scopes that were used
-	 * @param mcpServerName The MCP server name for display purposes
-	 */
-	addUsage(scopes: readonly string[], mcpServerName: string): void;
-
-	/**
-	 * Get usage history for this MCP server on this account
-	 * @returns Array of usage records
-	 */
-	getUsage(): {
-		readonly mcpServerId: string;
-		readonly mcpServerName: string;
-		readonly scopes: readonly string[];
-		readonly lastUsed: number;
-	}[];
-
-	/**
-	 * Remove all usage data for this MCP server on this account
-	 */
-	removeUsage(): void;
-
-	/**
-	 * Set this account as the preferred account for this MCP server
-	 */
-	setAsPreferred(): void;
-
-	/**
-	 * Check if this account is the preferred account for this MCP server
-	 */
-	isPreferred(): boolean;
-
-	/**
-	 * Check if this MCP server is trusted (defined in product.json)
-	 * @returns True if the MCP server is trusted, false otherwise
-	 */
-	isTrusted(): boolean;
-}
-
 /**
  * Query interface for operations on all extensions within a specific account
  */
@@ -233,34 +174,6 @@ export interface IAccountExtensionsQuery extends IBaseQuery {
 /**
  * Query interface for operations on all MCP servers within a specific account
  */
-export interface IAccountMcpServersQuery extends IBaseQuery {
-	readonly accountName: string;
-
-	/**
-	 * Get all MCP servers that have access to this account with their trusted state
-	 * @returns Array of objects containing MCP server data including trusted state
-	 */
-	getAllowedMcpServers(): { id: string; name: string; allowed?: boolean; lastUsed?: number; trusted?: boolean; url?: string; agentHost?: { authority: string; label: string } }[];
-
-	/**
-	 * Grant access to this account for all specified MCP servers
-	 * @param mcpServerIds Array of MCP server IDs to grant access to
-	 */
-	allowAccess(mcpServerIds: string[]): void;
-
-	/**
-	 * Remove access to this account for all specified MCP servers
-	 * @param mcpServerIds Array of MCP server IDs to remove access from
-	 */
-	removeAccess(mcpServerIds: string[]): void;
-
-	/**
-	 * Execute a callback for each MCP server that has used this account
-	 * @param callback Function to execute for each MCP server
-	 */
-	forEach(callback: (mcpServerQuery: IAccountMcpServerQuery) => void): void;
-}
-
 /**
  * Query interface for type-agnostic operations on all entities (extensions and MCP servers) within a specific account
  */
@@ -318,39 +231,6 @@ export interface IProviderExtensionQuery extends IBaseQuery {
 /**
  * Query interface for operations on a specific MCP server within a provider
  */
-export interface IProviderMcpServerQuery extends IBaseQuery {
-	readonly mcpServerId: string;
-
-	/**
-	 * Get the last used account for this MCP server within a provider
-	 * @returns The account name, or undefined if no preference is set
-	 */
-	getLastUsedAccount(): Promise<string | undefined>;
-
-	/**
-	 * Get the preferred account for this MCP server within a provider
-	 * @returns The account name, or undefined if no preference is set
-	 */
-	getPreferredAccount(): string | undefined;
-
-	/**
-	 * Set the preferred account for this MCP server within a provider
-	 * @param account The account to set as preferred
-	 */
-	setPreferredAccount(account: AuthenticationSessionAccount): void;
-
-	/**
-	 * Remove the account preference for this MCP server within a provider
-	 */
-	removeAccountPreference(): void;
-
-	/**
-	 * Get all accounts that this MCP server has used within this provider
-	 * @returns Array of account names
-	 */
-	getUsedAccounts(): Promise<string[]>;
-}
-
 /**
  * Query interface for provider-scoped operations
  */
@@ -374,7 +254,6 @@ export interface IProviderQuery extends IBaseQuery {
 	 * @param mcpServerId The MCP server id
 	 * @returns A provider-MCP server query interface
 	 */
-	mcpServer(mcpServerId: string): IProviderMcpServerQuery;
 
 	/**
 	 * Get information about active entities (extensions and MCP servers) within this provider
@@ -432,31 +311,6 @@ export interface IExtensionQuery {
 /**
  * Query interface for MCP server-scoped operations (cross-provider)
  */
-export interface IMcpServerQuery {
-	readonly mcpServerId: string;
-
-	/**
-	 * Get all providers where this MCP server has access
-	 * @param includeInternal Whether to include internal providers (starting with INTERNAL_AUTH_PROVIDER_PREFIX)
-	 * @returns Array of provider IDs
-	 */
-	getProvidersWithAccess(includeInternal?: boolean): Promise<string[]>;
-
-	/**
-	 * Get account preferences for this MCP server across all providers
-	 * @param includeInternal Whether to include internal providers (starting with INTERNAL_AUTH_PROVIDER_PREFIX)
-	 * @returns Map of provider ID to account name
-	 */
-	getAllAccountPreferences(includeInternal?: boolean): Map<string, string>;
-
-	/**
-	 * Get operations for this MCP server within a specific provider
-	 * @param providerId The provider ID
-	 * @returns A provider-MCP server query interface
-	 */
-	provider(providerId: string): IProviderMcpServerQuery;
-}
-
 /**
  * Main authentication query service interface
  */
@@ -500,7 +354,6 @@ export interface IAuthenticationQueryService {
 	 * @param mcpServerId The MCP server id
 	 * @returns An MCP server query interface
 	 */
-	mcpServer(mcpServerId: string): IMcpServerQuery;
 
 	/**
 	 * Get all available provider IDs

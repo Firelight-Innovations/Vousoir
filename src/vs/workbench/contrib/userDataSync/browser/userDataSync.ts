@@ -348,7 +348,7 @@ export class UserDataSyncWorkbenchContribution extends Disposable implements IWo
 				if (this.userDataSyncEnablementService.isEnabled()) {
 					this.notificationService.notify({
 						severity: Severity.Info,
-						message: localize('using separate service', "Settings sync now uses a separate service, more information is available in the [Settings Sync Documentation](https://aka.ms/vscode-settings-sync-help#_syncing-stable-versus-insiders)."),
+						message: localize('using separate service', "Settings sync now uses a separate service, more information is available in the [Settings Sync Documentation](https://github.com/Firelight-Innovations/Vousoir)."),
 					});
 				}
 
@@ -603,9 +603,6 @@ export class UserDataSyncWorkbenchContribution extends Disposable implements IWo
 		}, {
 			id: SyncResource.Tasks,
 			label: getSyncAreaLabel(SyncResource.Tasks)
-		}, {
-			id: SyncResource.Mcp,
-			label: getSyncAreaLabel(SyncResource.Mcp)
 		}, {
 			id: SyncResource.GlobalState,
 			label: getSyncAreaLabel(SyncResource.GlobalState),
@@ -1128,7 +1125,7 @@ export class UserDataSyncWorkbenchContribution extends Disposable implements IWo
 					}],
 				});
 			}
-			run(): unknown { return that.openerService.open(URI.parse('https://aka.ms/vscode-settings-sync-help')); }
+			run(): unknown { return that.openerService.open(URI.parse('https://github.com/Firelight-Innovations/Vousoir')); }
 		}));
 		MenuRegistry.appendMenuItem(MenuId.ViewContainerTitle, {
 			command: {

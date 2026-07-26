@@ -136,7 +136,6 @@ class RemoteSearchProvider implements ISearchResultProvider, IDisposable {
 
 	private readonly _registrations = new DisposableStore();
 	private readonly _searches = new Map<number, SearchOperation>();
-	private cachedAIName: string | undefined;
 
 	constructor(
 		searchService: ISearchService,
@@ -149,10 +148,8 @@ class RemoteSearchProvider implements ISearchResultProvider, IDisposable {
 	}
 
 	async getAIName(): Promise<string | undefined> {
-		if (this.cachedAIName === undefined) {
-			this.cachedAIName = await this._proxy.$getAIName(this._handle);
-		}
-		return this.cachedAIName;
+		// AI text search has been removed from Vousoir; no provider supplies an AI name.
+		return undefined;
 	}
 
 	dispose(): void {
@@ -226,7 +223,8 @@ class RemoteSearchProvider implements ISearchResultProvider, IDisposable {
 			case QueryType.Text:
 				return this._proxy.$provideTextSearchResults(this._handle, session, query, token);
 			default:
-				return this._proxy.$provideAITextSearchResults(this._handle, session, query, token);
+				// AI text search has been removed from Vousoir.
+				throw new Error('AI text search is not supported');
 		}
 	}
 }

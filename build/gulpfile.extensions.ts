@@ -60,8 +60,6 @@ const compilations = [
 	'extensions/extension-editing/tsconfig.json',
 	'extensions/git/tsconfig.json',
 	'extensions/git-base/tsconfig.json',
-	'extensions/github/tsconfig.json',
-	'extensions/github-authentication/tsconfig.json',
 	'extensions/grunt/tsconfig.json',
 	'extensions/gulp/tsconfig.json',
 	'extensions/html-language-features/client/tsconfig.json',
@@ -76,7 +74,6 @@ const compilations = [
 	'extensions/merge-conflict/tsconfig.json',
 	'extensions/mermaid-markdown-features/tsconfig.json',
 	'extensions/terminal-suggest/tsconfig.json',
-	'extensions/microsoft-authentication/tsconfig.json',
 	'extensions/notebook-renderers/tsconfig.json',
 	'extensions/npm/tsconfig.json',
 	'extensions/php-language-features/tsconfig.json',
@@ -282,13 +279,6 @@ task.task(compileNonNativeExtensionsBuildTask);
  */
 export const compileNativeExtensionsBuildTask = task.define('compile-native-extensions-build', () => ext.packageNativeLocalExtensionsStream(false, false).pipe(gulp.dest('.build')));
 task.task(compileNativeExtensionsBuildTask);
-
-/**
- * Compiles the built-in copilot extension for the build.
- * Used by non-CI local builds where copilot is not downloaded as a VSIX.
- */
-export const compileCopilotExtensionBuildTask = task.define('compile-copilot-extension-build', () => ext.packageCopilotExtensionStream(false).pipe(gulp.dest('.build')));
-task.task(compileCopilotExtensionBuildTask);
 
 /**
  * Compiles the extensions for the build.
