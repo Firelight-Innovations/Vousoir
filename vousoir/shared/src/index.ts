@@ -25,3 +25,19 @@ export { buildSpecTree } from './spec-store/spec-tree.ts';
 export { specNodeDescendantIds, specNodeIdChain } from './spec-store/spec-tree-walk.ts';
 export { specNodePaths, SPEC_FILE_EXTENSION } from './spec-store/spec-paths.ts';
 export type { SpecNodePaths } from './spec-store/spec-paths.ts';
+
+// The work-order compiler (source-of-truth Feature 4). `compileWorkOrder` is pure; writing
+// is a separate step so the user can review before anything reaches disk.
+export { compileWorkOrder } from './work-order/compile-work-order.ts';
+export { workOrderSlug } from './work-order/work-order-slug.ts';
+export { writeWorkOrder, workOrdersDir } from './work-order/write-work-order.ts';
+
+// Dispatch (source-of-truth Feature 5, ADR-005). `spawn` and `cli` are injectable so a
+// caller — or a test — is never forced to launch a real agent.
+export { dispatchWorkOrder } from './dispatch/dispatch-work-order.ts';
+export type { DispatchRun, DispatchSpawn, DispatchWorkOrderOptions } from './dispatch/dispatch-work-order.ts';
+export { claudeCli, claudeMissingMessage, claudeSpawnOptions, findClaudeCli, CLAUDE_COMMAND, CLAUDE_DISPATCH_ARGS } from './dispatch/claude-cli.ts';
+export type { ClaudeCli, DispatchSpawnOptions } from './dispatch/claude-cli.ts';
+export { mapClaudeStreamLine } from './dispatch/claude-stream-mapper.ts';
+export { TraceWriter } from './dispatch/trace-writer.ts';
+export type { TraceEventBody } from './dispatch/trace-writer.ts';

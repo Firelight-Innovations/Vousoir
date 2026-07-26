@@ -34,6 +34,15 @@ export const V6R_COMMITTED_SUBDIRS: readonly V6rSubdirKey[] = ['spec', 'whiteboa
 /** Subdirectories that hold only derived data and are therefore gitignored. */
 export const V6R_GITIGNORED_SUBDIRS: readonly V6rSubdirKey[] = ['cache'];
 
+/**
+ * Subdirectory of `cache/` holding compiled work orders. They live under the one
+ * gitignored subdir because they are derived: every work order is regenerable from the
+ * spec node that produced it, so committing them would put churn in git for a file no
+ * human authored. Declared here rather than at the compiler's call site, for the same
+ * reason the five subdirs are — a layout name must have exactly one home.
+ */
+export const V6R_WORK_ORDERS_DIRNAME = 'work-orders' as const;
+
 /** Filename of the `.gitignore` that ships inside every scaffolded `.vousoir/`. */
 export const V6R_GITIGNORE_FILENAME = '.gitignore' as const;
 

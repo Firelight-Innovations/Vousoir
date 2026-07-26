@@ -21,6 +21,18 @@
     "onStartupFinished"
   ],
   "contributes": {
+    "commands": [
+      {
+        "command": "vousoir.compileWorkOrder",
+        "title": "Compile Work Order...",
+        "category": "Vousoir"
+      },
+      {
+        "command": "vousoir.buildWithClaudeCode",
+        "title": "Build with Claude Code...",
+        "category": "Vousoir"
+      }
+    ],
     "viewsContainers": {
       "activitybar": [
         {

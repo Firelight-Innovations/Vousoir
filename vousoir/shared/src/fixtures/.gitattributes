@@ -1,0 +1,10 @@
+# The work-order fixtures and their golden file are compared byte for byte, so they must
+# arrive on disk exactly as committed. Without this, the repo-root `* text=auto` plus
+# `core.autocrlf=true` hands a Windows checkout CRLF copies and the golden test fails for a
+# reason that has nothing to do with the compiler. Caught exactly that way.
+#
+# Scoped deliberately to these files. The spec-store fixtures next door are LEFT to the
+# platform on purpose: their round-trip test is line-ending agnostic by design, and letting
+# them arrive CRLF on Windows keeps that claim honestly exercised.
+work-order-tree.golden.md -text
+work-order-tree/**/*.md -text
