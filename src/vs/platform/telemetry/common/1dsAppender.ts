@@ -19,8 +19,12 @@ export interface IAppInsightsCore {
 	unload(isAsync: boolean, unloadComplete: (unloadState: ITelemetryUnloadState) => void): void;
 }
 
-const endpointUrl = 'https://mobile.events.data.microsoft.com/OneCollector/1.0';
-const endpointHealthUrl = 'https://mobile.events.data.microsoft.com/ping';
+// Vousoir ships no telemetry backend. The former Microsoft 1DS/OneCollector
+// ingestion endpoints have been removed; these are left empty so that no
+// Microsoft URL is compiled in and any accidental client construction has
+// nowhere to send. The send path itself is also short-circuited (see `log`).
+const endpointUrl = '';
+const endpointHealthUrl = '';
 
 async function getClient(instrumentationKey: string, addInternalFlag?: boolean, xhrOverride?: IXHROverride): Promise<IAppInsightsCore> {
 	// eslint-disable-next-line local/code-amd-node-module
@@ -126,6 +130,8 @@ export abstract class AbstractOneDataSystemAppender implements ITelemetryAppende
 	}
 
 	log(eventName: string, data?: unknown): void {
+		// Vousoir: telemetry is disabled — no instrumentation key is ever supplied
+		// and the endpoint URL is empty, so this early-return is the normal path.
 		if (!this._aiCoreOrKey) {
 			return;
 		}
