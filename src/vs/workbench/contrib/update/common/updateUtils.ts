@@ -83,11 +83,13 @@ export function computeUpdateInfoVersion(currentVersion: string, targetVersion: 
 
 /**
  * Computes the URL to fetch update info from.
- * Follows the release notes URL pattern but with `_update` suffix.
+ *
+ * Vousoir does not host an update-info service, so this returns an empty string
+ * and callers skip the remote fetch. Point it at a Vousoir-owned host here if
+ * one is ever stood up.
  */
-export function getUpdateInfoUrl(version: string): string {
-	const versionLabel = version.replace(/\./g, '_').replace(/_0$/, '');
-	return `https://code.visualstudio.com/raw/v${versionLabel}_update.md`;
+export function getUpdateInfoUrl(_version: string): string {
+	return '';
 }
 
 /**
