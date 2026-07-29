@@ -17,7 +17,8 @@ import { ServicesAccessor, createDecorator } from '../../instantiation/common/in
 import { ILogService } from '../../log/common/log.js';
 import { IProductService } from '../../product/common/productService.js';
 import { IThemeMainService } from '../../theme/electron-main/themeMainService.js';
-import { IOpenEmptyWindowOptions, IWindowOpenable, IWindowSettings, TitlebarStyle, WindowMinimumSize, hasNativeTitlebar, useNativeFullScreen, useWindowControlsOverlay, zoomLevelToZoomFactor } from '../../window/common/window.js';
+import { IOpenEmptyWindowOptions, IWindowOpenable, IWindowSettings, TitlebarStyle, WindowMinimumSize, WindowVibrancy, hasNativeTitlebar, useNativeFullScreen, useWindowControlsOverlay, zoomLevelToZoomFactor } from '../../window/common/window.js';
+import { getWindowsBuildNumberSync } from '../../../base/node/windowsVersion.js';
 import { ICodeWindow, IWindowState, WindowMode, defaultWindowState } from '../../window/electron-main/window.js';
 
 export const IWindowsMainService = createDecorator<IWindowsMainService>('windowsMainService');
@@ -129,6 +130,49 @@ export interface IDefaultBrowserWindowOptionsOverrides {
 	notResizable?: boolean;
 	noBackgroundThrottling?: boolean;
 	backgroundColor?: string;
+}
+
+/**
+ * Windows 11 22H2 is the first build that honours `DWMWA_SYSTEMBACKDROP_TYPE`,
+ * which is what Electron's `backgroundMaterial` option maps to. Older builds
+ * ignore it, leaving a window that is transparent but has nothing behind it.
+ */
+const MIN_WINDOWS_BUILD_FOR_BACKDROP = 22621;
+
+/**
+ * `#AARRGGBB` with a zero alpha channel: the window paints nothing of its own,
+ * so the system backdrop composed behind it is what shows.
+ */
+export const TRANSPARENT_BACKGROUND_COLOR = '#00000000';
+
+/**
+ * Resolves the configured window vibrancy down to what the current platform can
+ * actually render. Returns `none` wherever the effect is unsupported so that an
+ * unsupported platform degrades to an ordinary opaque window.
+ */
+export function getWindowVibrancy(configurationService: IConfigurationService): WindowVibrancy {
+	const configured = configurationService.getValue<IWindowSettings | undefined>('window')?.vibrancy ?? WindowVibrancy.NONE;
+	if (configured === WindowVibrancy.NONE) {
+		return WindowVibrancy.NONE;
+	}
+
+	if (isWindows) {
+		return getWindowsBuildNumberSync() >= MIN_WINDOWS_BUILD_FOR_BACKDROP ? configured : WindowVibrancy.NONE;
+	}
+
+	if (isMacintosh) {
+		return configured;
+	}
+
+	return WindowVibrancy.NONE; // Linux has no system-drawn backdrop
+}
+
+/**
+ * macOS has no acrylic/mica; the closest equivalents are the two window-level
+ * `NSVisualEffectMaterial` values that blur what is behind the window.
+ */
+function toMacVibrancy(vibrancy: WindowVibrancy): 'under-window' | 'under-page' {
+	return vibrancy === WindowVibrancy.ACRYLIC ? 'under-window' : 'under-page';
 }
 
 export function defaultBrowserWindowOptions(accessor: ServicesAccessor, windowState: IWindowState, overrides?: IDefaultBrowserWindowOptionsOverrides, webPreferences?: electron.WebPreferences): electron.BrowserWindowConstructorOptions & { experimentalDarkMode: boolean } {
@@ -254,6 +298,22 @@ export function defaultBrowserWindowOptions(accessor: ServicesAccessor, windowSt
 	if (overrides?.transparent) {
 		options.transparent = true;
 		options.backgroundColor = undefined!; // transparent requires no background color
+	}
+
+	// Vibrancy is only applied when the caller did not already ask for a
+	// specific background treatment, and it always needs a fully transparent
+	// window background for the system backdrop to be visible through it.
+	if (!overrides?.transparent && !overrides?.backgroundColor) {
+		const vibrancy = getWindowVibrancy(configurationService);
+		if (vibrancy !== WindowVibrancy.NONE) {
+			if (isWindows) {
+				options.backgroundMaterial = vibrancy;
+				options.backgroundColor = TRANSPARENT_BACKGROUND_COLOR;
+			} else if (isMacintosh) {
+				options.vibrancy = toMacVibrancy(vibrancy);
+				options.backgroundColor = TRANSPARENT_BACKGROUND_COLOR;
+			}
+		}
 	}
 
 	if (overrides?.notResizable) {

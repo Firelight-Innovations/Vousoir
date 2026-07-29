@@ -111,14 +111,17 @@ function buildWin32Setup(arch: string, target: string): task.CallbackTask {
 			Quality: quality
 		};
 
-		if (quality === 'stable' || quality === 'insider') {
+		// Defining AppxPackageName switches code.iss onto the Windows 11 modern context menu: it
+		// then expects `appx\*.appx` in the packaged output and stops writing the legacy verbs.
+		// That package only exists when product.json declares a `win32ContextMenu` CLSID (see
+		// gulpfile.vscode.ts). Gating on quality alone, as upstream does, would make Inno fail on
+		// missing appx sources and leave a Vousoir install with no context menu at all.
+		const ctxMenu = (product as { win32ContextMenu?: Record<string, { clsid: string }> }).win32ContextMenu;
+		if ((quality === 'stable' || quality === 'insider') && ctxMenu && ctxMenu[arch]) {
 			definitions['AppxPackage'] = `${quality === 'stable' ? 'code' : 'code_insider'}_${arch}.appx`;
 			definitions['AppxPackageDll'] = `${quality === 'stable' ? 'code' : 'code_insider'}_explorer_command_${arch}.dll`;
 			definitions['AppxPackageName'] = `${product.win32AppUserModelId}`;
-			const ctxMenu = (product as { win32ContextMenu?: Record<string, { clsid: string }> }).win32ContextMenu;
-			if (ctxMenu && ctxMenu[arch]) {
-				definitions['FileExplorerContextMenuCLSID'] = ctxMenu[arch].clsid;
-			}
+			definitions['FileExplorerContextMenuCLSID'] = ctxMenu[arch].clsid;
 		}
 
 		fs.writeFileSync(productJsonPath, JSON.stringify(productJson, undefined, '\t'));

@@ -10,11 +10,11 @@ import { isLinux, isMacintosh, isWindows } from '../../../base/common/platform.j
 import { IConfigurationService } from '../../configuration/common/configuration.js';
 import { IStateService } from '../../state/node/state.js';
 import { IPartsSplash } from '../common/themeService.js';
-import { IColorScheme } from '../../window/common/window.js';
+import { IColorScheme, WindowVibrancy } from '../../window/common/window.js';
 import { ThemeTypeSelector } from '../common/theme.js';
 import { ISingleFolderWorkspaceIdentifier, IWorkspaceIdentifier } from '../../workspace/common/workspace.js';
 import { coalesce } from '../../../base/common/arrays.js';
-import { getAllWindowsExcludingOffscreen } from '../../windows/electron-main/windows.js';
+import { getAllWindowsExcludingOffscreen, getWindowVibrancy } from '../../windows/electron-main/windows.js';
 import { ILogService, LogLevel } from '../../log/common/log.js';
 import { IThemeMainService } from './themeMainService.js';
 
@@ -327,6 +327,10 @@ export class ThemeMainService extends Disposable implements IThemeMainService {
 	}
 
 	private updateBackgroundColor(windowId: number, splash: IPartsSplash): void {
+		if (getWindowVibrancy(this.configurationService) !== WindowVibrancy.NONE) {
+			return; // an opaque background color would hide the system backdrop
+		}
+
 		for (const window of getAllWindowsExcludingOffscreen()) {
 			if (window.id === windowId) {
 				window.setBackgroundColor(splash.colorInfo.background);

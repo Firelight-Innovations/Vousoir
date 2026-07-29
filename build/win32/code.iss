@@ -9,13 +9,13 @@ AppId={#AppId}
 AppName={#NameLong}
 AppVerName={#NameVersion}
 AppPublisher=Firelight Innovations
-AppPublisherURL=https://code.visualstudio.com/
-AppSupportURL=https://code.visualstudio.com/
-AppUpdatesURL=https://code.visualstudio.com/
+AppPublisherURL=https://github.com/vousoir/vousoir
+AppSupportURL=https://github.com/vousoir/vousoir
+AppUpdatesURL=https://github.com/vousoir/vousoir
 DefaultGroupName={#NameLong}
 AllowNoIcons=yes
 OutputDir={#OutputDir}
-OutputBaseFilename=VSCodeSetup
+OutputBaseFilename={#NameShort}Setup
 Compression=lzma
 SolidCompression=yes
 AppMutex={code:GetAppMutex}
@@ -85,8 +85,10 @@ Type: files; Name: "{app}\updating_version"
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 Name: "quicklaunchicon"; Description: "{cm:CreateQuickLaunchIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked; OnlyBelowVersion: 0,6.1
-Name: "addcontextmenufiles"; Description: "{cm:AddContextMenuFiles,{#NameShort}}"; GroupDescription: "{cm:Other}"; Flags: unchecked
-Name: "addcontextmenufolders"; Description: "{cm:AddContextMenuFolders,{#NameShort}}"; GroupDescription: "{cm:Other}"; Flags: unchecked
+; Checked by default (upstream ships these unchecked). "Open with Vousoir" from Explorer is a
+; primary way this build gets used, so opting out is the exception, not the default.
+Name: "addcontextmenufiles"; Description: "{cm:AddContextMenuFiles,{#NameShort}}"; GroupDescription: "{cm:Other}"
+Name: "addcontextmenufolders"; Description: "{cm:AddContextMenuFolders,{#NameShort}}"; GroupDescription: "{cm:Other}"
 Name: "associatewithfiles"; Description: "{cm:AssociateWithFiles,{#NameShort}}"; GroupDescription: "{cm:Other}"
 Name: "addtopath"; Description: "{cm:AddToPath}"; GroupDescription: "{cm:Other}"
 Name: "runcode"; Description: "{cm:RunAfter,{#NameShort}}"; GroupDescription: "{cm:Other}"; Check: WizardSilent
@@ -1514,10 +1516,19 @@ end;
 
 function ShouldUseWindows11ContextMenu(): Boolean;
 begin
+#ifdef AppxPackageName
   // Use Windows 11 context menu only if:
   // 1. Running on Windows 11 or later
   // 2. User has NOT forced Windows 10 style context menus
   Result := IsWindows11OrLater() and not IsWindows10ContextMenuForced();
+#else
+  // The modern Windows 11 menu is served by the MSIX sparse package, which this build does not
+  // carry (it needs Microsoft's signed explorer-command DLL and a code-signing certificate).
+  // Without that, claiming the modern menu would suppress the legacy verbs and leave no context
+  // menu at all - so always install the legacy ones. On Windows 11 they live under
+  // "Show more options".
+  Result := False;
+#endif
 end;
 
 function HasLegacyFileContextMenu(): Boolean;

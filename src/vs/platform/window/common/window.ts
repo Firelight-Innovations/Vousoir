@@ -218,6 +218,19 @@ export interface IWindowSettings {
 	readonly newWindowProfile: string;
 	readonly density: IDensitySettings;
 	readonly border: 'off' | 'default' | 'system' | string /* color in RGB or other formats */;
+	readonly vibrancy: WindowVibrancy;
+}
+
+/**
+ * The system-drawn translucent backdrop to render behind the window. Maps to
+ * Electron's `backgroundMaterial` on Windows 11 and `vibrancy` on macOS; has
+ * no equivalent on Linux.
+ */
+export const enum WindowVibrancy {
+	NONE = 'none',
+	MICA = 'mica',
+	ACRYLIC = 'acrylic',
+	TABBED = 'tabbed'
 }
 
 export interface IDensitySettings {
@@ -472,6 +485,12 @@ export interface INativeWindowConfiguration extends IWindowConfiguration, Native
 
 	os: IOSConfiguration;
 	policiesData?: IStringDictionary<{ definition: PolicyDefinition; value: PolicyValue }>;
+
+	/**
+	 * Only set when the window was actually created with a system backdrop, so
+	 * the workbench can render its surfaces translucent to let it show through.
+	 */
+	vibrancy?: WindowVibrancy;
 
 	isSessionsWindow?: boolean;
 }
