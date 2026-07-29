@@ -1,64 +1,31 @@
 /**
- * Smoke test for the real canvas webview script.
+ * Smoke test for the real canvas webview script: rendering, and the messages it sends back.
  *
  * This crosses the gap that three milestones never crossed: "boxes computed" to "boxes in
  * the DOM". It loads `media/canvas.js` off disk — the shipped file — into HTML produced by
  * the real `canvasHtml` builder, and drives it with the real layout output.
  *
  * Smoke, not exhaustive: each path is proven once. See `webview-harness.ts` for the four
- * things this deliberately does not prove, the CSP most importantly.
+ * things this deliberately does not prove, the CSP most importantly. Pointer gestures live
+ * in `canvas-webview-gestures.smoke.test.ts`; the shared setup in `canvas-webview-fixture.ts`.
  */
 
 import { beforeEach, describe, expect, it } from 'vitest';
-import { layoutSpecTree } from '@vousoir/shared';
-import type { CanvasBox, SpecNode, SpecNodeFrontmatter, SpecTree } from '@vousoir/typings';
-import { buildSpecTree } from '@vousoir/shared';
-import { canvasHtml } from './canvas-html.ts';
-import { fakeUri, fakeWebview, mountWebview, mouse, type MountedWebview } from '../webview-harness.ts';
-
-function node(id: string, parent: string | null, title = id): SpecNode {
-	const frontmatter: SpecNodeFrontmatter = { id, title, parent, status: 'specified' };
-	return { id, filePath: `/repo/.vousoir/spec/${id}.md`, frontmatter, body: '' };
-}
-
-/** The DoD shape: three modules with one nested. */
-function demoTree(): SpecTree {
-	return buildSpecTree([
-		node('root', null, 'Vousoir Demo'),
-		node('api', 'root', 'Task API'),
-		node('validation', 'api', 'Request Validation'),
-		node('storage', 'root', 'Task Store'),
-	]);
-}
-
-function renderMessage(tree: SpecTree = demoTree()): Record<string, unknown> {
-	const layout = layoutSpecTree(tree);
-	return {
-		type: 'render',
-		projectName: 'Vousoir Demo',
-		width: layout.width,
-		height: layout.height,
-		boxes: layout.boxes.map((box: CanvasBox) => ({ ...box })),
-	};
-}
-
-function nodes(): Element[] {
-	return [...document.querySelectorAll('.v6r-node')];
-}
-
-function nodeFor(id: string): HTMLElement {
-	const element = document.querySelector(`.v6r-node[data-id="${id}"]`);
-	if (element === null) {
-		throw new Error(`no rendered node for "${id}"`);
-	}
-	return element as HTMLElement;
-}
+import type { CanvasBox } from '@vousoir/typings';
+import {
+	mountCanvas,
+	nodeFor,
+	nodes,
+	renderMessage,
+	withRealStyles,
+} from './canvas-webview-fixture.ts';
+import type { MountedWebview } from '../webview-harness.ts';
+import { mouse } from '../webview-harness.ts';
 
 let canvas: MountedWebview;
 
 beforeEach(() => {
-	const html = canvasHtml(fakeWebview() as never, fakeUri('/media') as never, 'Vousoir Demo');
-	canvas = mountWebview(html, 'canvas.js');
+	canvas = mountCanvas();
 });
 
 describe('the canvas renders', () => {
@@ -113,6 +80,22 @@ describe('the canvas renders', () => {
 		const empty = document.getElementById('v6r-empty');
 		expect(empty?.hidden).toBe(false);
 		expect(empty?.textContent).toContain('No modules yet');
+	});
+
+	it('titles the canvas from the render, so a drilled-in subtree says where you are', () => {
+		canvas.send({ ...renderMessage(), projectName: 'Vousoir Demo / Task API' });
+		expect(document.getElementById('v6r-project')?.textContent).toBe('Vousoir Demo / Task API');
+	});
+
+	it('takes the empty-state overlay out of the layout once modules render', () => {
+		// Regression: `#v6r-empty` sets `display: flex`, which outranks the user agent's
+		// `[hidden] { display: none }`. Hiding it therefore left an invisible, full-viewport
+		// element over the canvas that swallowed every click, drag and wheel.
+		withRealStyles();
+		canvas.send(renderMessage());
+		const empty = document.getElementById('v6r-empty') as HTMLElement;
+		expect(empty.hidden).toBe(true);
+		expect(window.getComputedStyle(empty).display).toBe('none');
 	});
 
 	it('shows an error in place of the canvas when the extension reports one', () => {
@@ -179,88 +162,26 @@ describe('the canvas talks back', () => {
 		expect(document.getElementById('v6r-notice')?.textContent).toContain('Select a module');
 	});
 
-});
-
-describe('the canvas handles pointer gestures', () => {
-	beforeEach(() => {
-		canvas.send(renderMessage());
-	});
-
-	it('pans the surface without moving any node', () => {
-		const viewport = document.getElementById('v6r-viewport') as Element;
-		const before = nodeFor('api').style.left;
-		mouse(viewport, 'mousedown', 100, 100);
-		mouse(window as unknown as EventTarget, 'mousemove', 160, 140);
-		mouse(window as unknown as EventTarget, 'mouseup', 160, 140);
-
-		expect(document.getElementById('v6r-surface')?.style.transform).toContain('translate(60px, 40px)');
-		expect(nodeFor('api').style.left).toBe(before);
-		expect(canvas.lastPosted('moveNode')).toBeUndefined();
-	});
-
-	it('zooms on wheel', () => {
-		const viewport = document.getElementById('v6r-viewport') as Element;
-		viewport.dispatchEvent(new window.WheelEvent('wheel', { bubbles: true, cancelable: true, deltaY: -240 }));
-		expect(document.getElementById('v6r-surface')?.style.transform).toMatch(/scale\((?!1\))/);
-	});
-
-	it('drags a module to empty space and reports a manual placement', () => {
-		const message = renderMessage();
-		const storage = (message['boxes'] as CanvasBox[]).find((box) => box.id === 'storage');
-		expect(storage).toBeDefined();
-
-		// Drop far outside every box, so the drop target is empty canvas.
-		mouse(nodeFor('storage'), 'mousedown', 300, 300);
-		mouse(window as unknown as EventTarget, 'mousemove', 900, 700);
-		mouse(window as unknown as EventTarget, 'mouseup', 900, 700);
-
-		expect(canvas.lastPosted('reparentNode')).toBeUndefined();
-		expect(canvas.lastPosted('moveNode')).toMatchObject({
-			id: 'storage',
-			position: { x: (storage?.x ?? 0) + 600, y: (storage?.y ?? 0) + 400 },
-		});
-	});
-
-	it('drags a module onto another and reports a re-parent, not a placement', () => {
-		const message = renderMessage();
-		const target = (message['boxes'] as CanvasBox[]).find((box) => box.id === 'storage');
-		expect(target).toBeDefined();
-		// Aim at the middle of `storage`, which is not `validation`'s current parent.
-		const dropX = (target?.x ?? 0) + (target?.width ?? 0) / 2;
-		const dropY = (target?.y ?? 0) + (target?.height ?? 0) / 2;
-
-		mouse(nodeFor('validation'), 'mousedown', 10, 10);
-		mouse(window as unknown as EventTarget, 'mousemove', dropX, dropY);
-		mouse(window as unknown as EventTarget, 'mouseup', dropX, dropY);
-
-		expect(canvas.lastPosted('moveNode')).toBeUndefined();
-		expect(canvas.lastPosted('reparentNode')).toMatchObject({ id: 'validation', parent: 'storage' });
-	});
-
-	it('does not offer a module its own descendant as a drop target', () => {
-		// Dragging `api` onto `validation`, which is inside `api`. The store would reject the
-		// cycle, but bouncing a natural gesture off an error is worse than treating it as a
-		// placement — so the webview must not propose the re-parent in the first place.
-		const message = renderMessage();
-		const child = (message['boxes'] as CanvasBox[]).find((box) => box.id === 'validation');
-		expect(child).toBeDefined();
-		const dropX = (child?.x ?? 0) + (child?.width ?? 0) / 2;
-		const dropY = (child?.y ?? 0) + (child?.height ?? 0) / 2;
-
+	it('selects for the toolbar and the spec panel with the same click', () => {
+		// Regression: clicking told the panel and right-clicking told the toolbar, so whichever
+		// gesture you used, the other surface disagreed.
 		mouse(nodeFor('api'), 'mousedown', 10, 10);
-		mouse(window as unknown as EventTarget, 'mousemove', dropX, dropY);
-		mouse(window as unknown as EventTarget, 'mouseup', dropX, dropY);
-
-		expect(canvas.lastPosted('reparentNode')).toBeUndefined();
-		expect(canvas.lastPosted('moveNode')).toMatchObject({ id: 'api' });
+		(document.getElementById('v6r-rename') as HTMLElement).click();
+		expect(canvas.lastPosted('renameNode')).toMatchObject({ id: 'api' });
 	});
 
-	it('treats a few pixels of movement as a click, not a drag', () => {
-		const api = nodeFor('api');
-		mouse(api, 'mousedown', 100, 100);
-		mouse(window as unknown as EventTarget, 'mousemove', 101, 101);
-		mouse(window as unknown as EventTarget, 'mouseup', 101, 101);
-		expect(canvas.lastPosted('moveNode')).toBeUndefined();
-		expect(canvas.lastPosted('reparentNode')).toBeUndefined();
+	it('marks the selected module, and keeps the mark across a re-render', () => {
+		mouse(nodeFor('api'), 'mousedown', 10, 10);
+		expect(nodeFor('api').classList.contains('v6r-selected')).toBe(true);
+		canvas.send(renderMessage());
+		expect(nodeFor('api').classList.contains('v6r-selected')).toBe(true);
+		expect(nodeFor('storage').classList.contains('v6r-selected')).toBe(false);
 	});
+
+	it('drops the mark when the selection is cleared on empty canvas', () => {
+		mouse(nodeFor('api'), 'mousedown', 10, 10);
+		mouse(document.getElementById('v6r-viewport') as Element, 'mousedown', 5, 5);
+		expect(nodeFor('api').classList.contains('v6r-selected')).toBe(false);
+	});
+
 });

@@ -116,6 +116,12 @@ body {
 	border-style: dashed;
 }
 
+/* Outline rather than a border swap: a border change would reflow the 1px and shift the label. */
+.v6r-node.v6r-selected {
+	outline: 2px solid var(--vscode-focusBorder);
+	outline-offset: -1px;
+}
+
 .v6r-node-title {
 	display: block;
 	padding: 8px 10px 0;
@@ -142,4 +148,15 @@ body {
 	text-align: center;
 	white-space: pre-wrap;
 	opacity: 0.8;
+}
+
+/*
+ * `display: flex` above beats the user-agent's `[hidden] { display: none }` on specificity,
+ * so `empty.hidden = true` would leave this sitting over the whole viewport - invisible,
+ * because it is empty, but swallowing every click, drag and wheel aimed at the canvas.
+ * Restate the rule at ID specificity. Same for the notice, which is painted over the canvas.
+ */
+#v6r-empty[hidden],
+#v6r-notice[hidden] {
+	display: none;
 }
