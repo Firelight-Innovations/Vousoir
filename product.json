@@ -89,6 +89,87 @@
 				},
 				"publisherDisplayName": "Microsoft"
 			}
+		},
+		{
+			"name": "PKief.material-icon-theme",
+			"version": "5.37.0",
+			"sha256": "ade9adefe3909cea92aed52850ddd00975d1dc1b62fe558831f6fb8b88f7c3ce",
+			"repo": "https://github.com/material-extensions/vscode-material-icon-theme",
+			"metadata": {
+				"id": "5db78037-f674-459f-a236-db622c427c5b",
+				"publisherId": {
+					"publisherId": "f9e5bc2f-fea1-4075-917f-d83e01e69f56",
+					"publisherName": "PKief",
+					"displayName": "PKief",
+					"flags": "none"
+				},
+				"publisherDisplayName": "PKief"
+			}
+		},
+		{
+			"name": "tomoki1207.pdf",
+			"version": "1.2.2",
+			"sha256": "5697cd022caf93fa0fdb8c5b9c3624951394d8126ed09184ad4fdbcad62dadce",
+			"repo": "https://github.com/tomoki1207/vscode-pdfviewer",
+			"metadata": {
+				"id": "6db08635-0c6a-45ba-9a4b-8c3e192c63c2",
+				"publisherId": {
+					"publisherId": "36dae390-559e-4374-bca8-a49ec1616c36",
+					"publisherName": "tomoki1207",
+					"displayName": "tomoki1207",
+					"flags": "none"
+				},
+				"publisherDisplayName": "tomoki1207"
+			}
+		},
+		{
+			"name": "hediet.vscode-drawio",
+			"version": "1.6.6",
+			"sha256": "48f7129d2ecb9d12f981d889215b0568dede71cad41d28fdb906084199659b43",
+			"repo": "https://github.com/hediet/vscode-drawio",
+			"metadata": {
+				"id": "ea6a6046-2132-421f-a984-664909fcf0b8",
+				"publisherId": {
+					"publisherId": "4d8048f9-07cf-483a-b27b-1fdc29cea931",
+					"publisherName": "hediet",
+					"displayName": "hediet",
+					"flags": "none"
+				},
+				"publisherDisplayName": "hediet"
+			}
+		},
+		{
+			"name": "illixion.vscode-vibrancy-continued",
+			"version": "1.1.86",
+			"sha256": "89304290d27688effd6c82c69fe0787983652772700c120ec498a496c050bd6f",
+			"repo": "https://github.com/illixion/vscode-vibrancy-continued",
+			"metadata": {
+				"id": "da69820f-32f2-49c6-915b-aa8e49455529",
+				"publisherId": {
+					"publisherId": "959bc563-e508-41c8-b638-4244ffb346cb",
+					"publisherName": "illixion",
+					"displayName": "Ixion",
+					"flags": "none"
+				},
+				"publisherDisplayName": "Ixion"
+			}
+		},
+		{
+			"name": "zoellner.openapi-preview",
+			"version": "2.3.2",
+			"sha256": "f5f208179c70fea6b78569311344900498be187bd295f29caacf910c73f9ff35",
+			"repo": "https://github.com/zoellner/openapi-preview",
+			"vsix": "vousoir/vendor/zoellner.openapi-preview-2.3.2.vsix",
+			"metadata": {
+				"id": "4a6839b3-c138-4a63-978f-4221cbd58524",
+				"publisherId": {
+					"publisherId": "04a31a0e-9fe9-4117-9199-a8b0c5c29615",
+					"publisherName": "zoellner",
+					"displayName": "Andreas Zoellner",
+					"flags": "none"
+				},
+				"publisherDisplayName": "Andreas Zoellner"
+			}
 		}
 	],
 	"onboardingKeymaps": [

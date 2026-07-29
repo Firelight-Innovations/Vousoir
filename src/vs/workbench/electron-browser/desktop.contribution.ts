@@ -333,6 +333,27 @@ import product from '../../platform/product/common/product.js';
 					return windowBorderDescription;
 				})(),
 				'included': isWindows
+			},
+			'window.vibrancy': {
+				'type': 'string',
+				'enum': ['none', 'mica', 'acrylic', 'tabbed'],
+				'default': 'none',
+				'scope': ConfigurationScope.APPLICATION,
+				'markdownEnumDescriptions': [
+					localize('window.vibrancy.none', "Draw an opaque window background."),
+					localize('window.vibrancy.mica', "Tint the window with the desktop wallpaper."),
+					localize('window.vibrancy.acrylic', "Blur whatever is behind the window."),
+					localize('window.vibrancy.tabbed', "Tint the window with the desktop wallpaper, using the variant intended for tabbed windows."),
+				],
+				'markdownDescription': localize('window.vibrancy', "Render the workbench over a translucent, system-drawn window background. Requires Windows 11 22H2 or newer, or macOS, and has no effect elsewhere. On macOS all values other than {0} map to the closest system material. Changes require a full restart to apply.", '`none`'),
+				// Deliberately withheld. The implementation compiles and runs, but the workbench
+				// surfaces in `vibrancy.ts` do not yet cover every part: empty pane areas (the space
+				// below the last file in the explorer, for one) paint nothing and let the system
+				// backdrop through, which reads as a washed-out panel rather than a translucent one.
+				// Not registering the setting means `getWindowVibrancy` always resolves to `none`,
+				// so no window is ever created with a backdrop. Restore `isWindows || isMacintosh`
+				// to resume the work.
+				'included': false
 			}
 		}
 	});

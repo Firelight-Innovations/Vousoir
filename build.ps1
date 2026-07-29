@@ -23,16 +23,33 @@
 .PARAMETER Archive
     Also produce a .zip alongside the output folder.
 
+.PARAMETER Installer
+    Also build an Inno Setup installer from the packaged folder. Adds a couple of
+    minutes on top of packaging. The installer is what registers the "Open with
+    Vousoir" Explorer context menu, file associations and the PATH entry; the plain
+    folder output registers nothing.
+
+    To get just the context menu against an existing folder build - no installer -
+    use scripts\vousoir-shell-integration.ps1 instead.
+
+.PARAMETER InstallerTarget
+    user (default) installs to %LOCALAPPDATA%\Programs and needs no elevation.
+    system installs to Program Files and prompts for admin.
+
 .EXAMPLE
     .\build.ps1
 .EXAMPLE
     .\build.ps1 -NoMinify -Archive
+.EXAMPLE
+    .\build.ps1 -Installer
 #>
 [CmdletBinding()]
 param(
     [ValidateSet('x64', 'arm64')][string]$Arch = 'x64',
     [switch]$NoMinify,
-    [switch]$Archive
+    [switch]$Archive,
+    [switch]$Installer,
+    [ValidateSet('user', 'system')][string]$InstallerTarget = 'user'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -57,6 +74,15 @@ Write-Host "  Vousoir distributable build" -ForegroundColor White
 # --- Preflight -------------------------------------------------------------
 if (-not (Test-Path (Join-Path $repoRoot 'node_modules'))) {
     Fail "node_modules is missing - dependencies are not installed." "Run .\setup.ps1 first."
+}
+
+# Fail before the 45-minute packaging run, not after it.
+$iscc = Join-Path $repoRoot 'node_modules\innosetup\bin\ISCC.exe'
+if ($Installer -and -not (Test-Path $iscc)) {
+    Fail "-Installer needs the Inno Setup compiler, but $iscc is missing." @"
+The 'innosetup' package should have come from npm ci. Reinstall it:
+  npm ci
+"@
 }
 
 # Same space-free Node path the setup script establishes. Packaging shells out
@@ -114,6 +140,33 @@ if (-not (Test-Path $exe)) {
 $sizeGb = [math]::Round((Get-ChildItem $outDir -Recurse -File -ErrorAction SilentlyContinue |
                          Measure-Object -Property Length -Sum).Sum / 1GB, 2)
 
+# --- Optional installer ----------------------------------------------------
+$setupExe = $null
+if ($Installer) {
+    # code.iss pulls tools\* out of the packaged folder without skipifsourcedoesntexist, and the
+    # packaging task above does not put them there - the inno-updater task does. Skipping this
+    # makes the Inno compile fail on a missing source file.
+    Write-Host ""
+    Write-Host "==> Staging updater tools: gulp vscode-win32-$Arch-inno-updater" -ForegroundColor Cyan
+    & $nodeExe $npmCli run gulp "vscode-win32-$Arch-inno-updater"
+    if ($LASTEXITCODE -ne 0) { Fail "Task 'vscode-win32-$Arch-inno-updater' failed." "" }
+    Write-Ok "tools staged"
+
+    Write-Host ""
+    Write-Host "==> Building installer: gulp vscode-win32-$Arch-$InstallerTarget-setup" -ForegroundColor Cyan
+    Write-Warn "A few minutes. Inno Setup recompresses the whole payload."
+
+    & $nodeExe $npmCli run gulp "vscode-win32-$Arch-$InstallerTarget-setup"
+    if ($LASTEXITCODE -ne 0) { Fail "Task 'vscode-win32-$Arch-$InstallerTarget-setup' failed." "" }
+
+    # gulpfile.vscode.win32.ts writes into .build\win32-<arch>\<target>-setup.
+    $setupDir = Join-Path $repoRoot ".build\win32-$Arch\$InstallerTarget-setup"
+    $setupExe = Get-ChildItem $setupDir -Filter *.exe -ErrorAction SilentlyContinue |
+                Sort-Object Length -Descending | Select-Object -First 1
+    if (-not $setupExe) { Fail "The setup task reported success but no .exe is in $setupDir." "" }
+    Write-Ok "installer built"
+}
+
 # --- Optional archive ------------------------------------------------------
 $zipPath = $null
 if ($Archive) {
@@ -133,6 +186,17 @@ Write-Host ""
 Write-Host "  Output   $outDir  ($sizeGb GB)" -ForegroundColor White
 if ($zipPath) { Write-Host "  Archive  $zipPath" -ForegroundColor White }
 Write-Host "  Run      $exe" -ForegroundColor White
+if ($setupExe) {
+    Write-Host "  Setup    $($setupExe.FullName)  ($([math]::Round($setupExe.Length / 1MB)) MB, $InstallerTarget install)" -ForegroundColor White
+    Write-Host ""
+    Write-Host "  'Open with Vousoir' for files and folders is checked by default in the" -ForegroundColor DarkGray
+    Write-Host "  installer. On Windows 11 it appears under 'Show more options'." -ForegroundColor DarkGray
+} else {
+    Write-Host ""
+    Write-Host "  This folder registers nothing with Windows. For the Explorer context menu:" -ForegroundColor DarkGray
+    Write-Host "    .\scripts\vousoir-shell-integration.ps1     (no installer, no elevation)" -ForegroundColor DarkGray
+    Write-Host "    .\build.ps1 -Installer                      (full installer)" -ForegroundColor DarkGray
+}
 Write-Host ""
 Write-Host "  Note: this build is UNSIGNED. Signed installers are out of scope" -ForegroundColor DarkGray
 Write-Host "  for v1 (work order section 10). Windows SmartScreen will warn on" -ForegroundColor DarkGray

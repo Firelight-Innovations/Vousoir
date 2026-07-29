@@ -1,12 +1,12 @@
 # Vousoir (v6r) — Progress
 
-Updated after every milestone. Docs: [`ADR.md`](./ADR.md) (why) · [`ARCHITECTURE.md`](./ARCHITECTURE.md) (how and where).
+Updated after every milestone. Docs: [`ADR.md`](./ADR.md) (why) · [`ARCHITECTURE.md`](./ARCHITECTURE.md) (how and where) · [`DRIVING-THE-UI.md`](./DRIVING-THE-UI.md) (how to launch and drive the app).
 
-**Gate for every milestone:** `cd vousoir; pnpm run verify` green. **254 tests, exit 0** — 212 at M3, plus 42 from the canvas smoke harness (PR #19).
+**Gate for every milestone:** `cd vousoir; pnpm run verify` green. **279 tests, exit 0** — 212 at M3, plus 42 from the canvas smoke harness (PR #19), plus 25 since (5 of them the Electron-launch regressions below).
 
-**All seven milestones are through, plus a canvas smoke harness.** ⚠️ **No Vousoir UI has run in
-Electron yet** — the render path is exercised headlessly; see below for exactly what that does and does
-not prove. That is the one outstanding item.
+**All seven milestones are through, and the canvas has now run in Electron.** The outstanding item is
+closed — and it was closed by finding three real defects that no headless test could see. See
+[The first Electron launch](#the-first-electron-launch--2026-07-27).
 
 ## Milestones
 
@@ -18,29 +18,52 @@ order was not milestone order — M4/M5/M6 shipped before M2/M3.
 |---|---|---|---|---|
 | **M0 — Recon** | ✅ Complete | `v6r/m0-recon` | [#11](https://github.com/Firelight-Innovations/Vousoir/pull/11) | 8 ADRs + architecture map + this tracker. Docs only. Every citation verified against the tree; 4 briefed claims were wrong. Amended throughout M1–M6 as shipped code corrected it — 13 doc defects found and fixed. |
 | **M1 — Model + spec store** | ✅ Complete | `v6r/m1-model` | [#12](https://github.com/Firelight-Innovations/Vousoir/pull/12) | Schema extended in place (ADR-008): typed `contracts[]`, optional given/when/then, scalar `contract` kept. `SpecStore` in `@vousoir/shared` — load/save/CRUD/nest/watch, byte-identical round trip. Brought `yaml@2.9.0` (closes D5/D7). Carried the `.v6r/` → `.vousoir/` rename into code. 22 → 66 tests. |
-| **M2 — Canvas editor + auto-layout** | ⚠️ **Render path exercised headlessly — no Electron launch yet** | `v6r/m2-canvas` | [#17](https://github.com/Firelight-Innovations/Vousoir/pull/17) · [#19](https://github.com/Firelight-Innovations/Vousoir/pull/19) | `CustomTextEditorProvider` on `*.v6r`; layout engine in `@vousoir/shared` (26 tests). Manual placement + auto-tidy (ADR-003 amendment); positions in `.vousoir/layout.json`. Every structural edit routes through the M1 store. The smoke harness loads the **real** `media/canvas.js` into HTML from the **real** builder on **real** layout output, so the render path and both message directions are exercised. **Unproven: the CSP** (happy-dom does not enforce it), `asWebviewUri`, real painting, pointer semantics. 144 → 187 tests; the harness later added 42 more (212 → 254). |
-| **M3 — Per-node spec panel** | ⚠️ **Render path exercised headlessly — gated on M2 for the real launch** | `v6r/m3-panel` | [#18](https://github.com/Firelight-Innovations/Vousoir/pull/18) | Sidebar webview, not inside the canvas. Spec completeness = behaviour + ≥1 contract + ≥1 test case, derived from content never `status`. External edit: dirty → warn, clean → reload. Save writes exactly one file. Smoke-covered on the same terms as M2. **Driven by canvas selection, so a blank canvas hides this too.** 187 → 212 tests. |
+| **M2 — Canvas editor + auto-layout** | ✅ Complete — **verified in Electron 2026-07-27** | `v6r/m2-canvas` | [#17](https://github.com/Firelight-Innovations/Vousoir/pull/17) · [#19](https://github.com/Firelight-Innovations/Vousoir/pull/19) | `CustomTextEditorProvider` on `*.v6r`; layout engine in `@vousoir/shared` (26 tests). Manual placement + auto-tidy (ADR-003 amendment); positions in `.vousoir/layout.json`. Every structural edit routes through the M1 store. The smoke harness loads the **real** `media/canvas.js` into HTML from the **real** builder on **real** layout output, so the render path and both message directions are exercised. The four things it could not prove were settled by the Electron launch: CSP and `asWebviewUri` passed, real painting and pointer semantics turned up three defects (see below). 144 → 187 tests; the harness later added 42 more (212 → 254), the launch 5 more. |
+| **M3 — Per-node spec panel** | ✅ Complete — **verified in Electron 2026-07-27** | `v6r/m3-panel` | [#18](https://github.com/Firelight-Innovations/Vousoir/pull/18) | Sidebar webview, not inside the canvas. Spec completeness = behaviour + ≥1 contract + ≥1 test case, derived from content never `status`. External edit: dirty → warn, clean → reload. Save writes exactly one file. Smoke-covered on the same terms as M2. It was indeed hidden by M2: the canvas overlay defect stopped selection ever reaching the extension host, so the panel looked broken when it was not. It populates correctly in Electron. 187 → 212 tests. |
 | **M4 — Work-order compiler** | ✅ Complete | `v6r/m4-compiler` | [#13](https://github.com/Firelight-Innovations/Vousoir/pull/13) | Settled scope: node's full spec + ancestors' **behaviour summaries** + neighbours' **contract blocks only, never internals**. Pure `compileWorkOrder`, separate `writeWorkOrder` to `.vousoir/cache/work-orders/`. Leak prevention is structural — the context types cannot hold a neighbour's internals. Neighbours are a structural approximation pending open question 10. 66 → 93 tests. |
 | **M5 — Dispatch to Claude Code** | ✅ Complete | `v6r/m5-dispatch` | [#14](https://github.com/Firelight-Innovations/Vousoir/pull/14) | Engine in `@vousoir/shared`; the extension keeps only the command. Work order to **stdin**, never argv. Transient run status, nothing writes a spec file. JSONL traces reuse `traceEventSchema`. `ELECTRON_RUN_AS_NODE` verified three ways. 93 → 112 tests. |
 | **M6 — Orchestration + MCP server** | ✅ Complete | `v6r/m6-mcp` | [#15](https://github.com/Firelight-Innovations/Vousoir/pull/15) | Standalone `vousoir/services/spec-mcp/`, nine tools, no cached tree, writes through the M1 store. `get_work_order` byte-identical to the editor's. Sequential orchestrator by design. Live MCP demo verified. 112 → 144 tests. |
 
-### ⚠️ The one thing outstanding — and it is now specific
+### The first Electron launch — 2026-07-27
 
-**No Vousoir UI has run in Electron.** The smoke harness (PR #19) closed most of this gap: it loads the
-**real** `media/canvas.js` and `media/spec-panel.js` into HTML from the **real** builders on **real**
-`layoutSpecTree` output, so the render path and the message protocol in both directions are exercised.
+**Done, and it was worth doing.** `scripts/vousoir-dev.ps1` (new) launches the desktop app into a
+throwaway profile with a CDP port; `@playwright/cli` drives it. The demo fixture opens, all four
+modules render, and the spec panel populates.
 
-**What remains, in priority order:**
+**The four unknowns the harness could not reach, now settled:**
 
-1. **The CSP — the single most likely remaining failure.** happy-dom does not enforce it, so a script
-   blocked by a bad nonce or a missing `localResourceRoots` entry passes headlessly and fails in
-   Electron. **If the canvas is blank, check this first.**
-2. `asWebviewUri` resolution.
-3. Real layout and painting — happy-dom has no box model, `getBoundingClientRect` is stubbed.
-4. True pointer semantics.
+1. **The CSP — passed.** Predicted as the most likely failure; it was not the failure. The nonce and
+   `localResourceRoots` are correct, `canvas.js` and `canvas.css` load in Electron.
+2. **`asWebviewUri` — passed.**
+3. **Real layout and painting — this is where all three defects were**, exactly the area happy-dom
+   cannot model. See below.
+4. **True pointer semantics — passed** once the defects were fixed.
 
-**One human session settles all four:** launch `scripts/code.bat`, open a `*.v6r` file, confirm nodes
-render, select one, confirm the panel populates. M3 is gated on M2 here — a blank canvas hides both.
+**Three defects, all invisible to a DOM without a box model:**
+
+| Defect | Why no test caught it |
+|---|---|
+| **`#v6r-empty` swallowed every pointer event.** Its `display: flex` outranks the UA's `[hidden] { display: none }` on specificity, so hiding it left an invisible full-viewport element over the canvas. **This was the whole reported bug** — no click, drag, zoom or double-click reached a module, and because selection never crossed to the extension host, the spec panel stayed empty too. Fixed by restating the rule at ID specificity. | The smoke tests dispatch events directly on the node element, so they bypass hit-testing entirely. happy-dom has no box model and no `elementFromPoint` worth trusting. |
+| **Selection was split across two gestures.** Left-click posted `selectNode` (drove the panel); right-click set the webview's local `selectedId` (drove the toolbar). Neither did both, so whichever gesture you used, the other surface disagreed — and the hint text told you to right-click, the one that never reached the panel. Both now route through one `select()`. | Each half was tested, separately, and each half passed. Nothing asserted they were the *same* selection. |
+| **The drilled-in title was computed and thrown away.** `#render` sends `projectName: "Project / Module"`; `canvas.js` never read it, so after drilling in nothing said which subtree you were looking at. | The protocol carried the field and the provider set it correctly. No test asserted the webview *applied* it. |
+
+A selection outline (`.v6r-selected`) was added at the same time — before it, a selected module looked
+identical to an unselected one.
+
+**Five regression tests** cover all three, plus the CSS cascade the harness previously skipped
+(`withRealStyles()` injects the real `canvas.css` so `getComputedStyle` is meaningful). The overlay
+test was watched to fail — `flex`, not `none` — before the fix landed.
+
+**The browser path is set up but blocked on the environment.** `scripts/vousoir-web.ps1` serves the
+workbench for Chrome, and needed two fixes to get that far: web webviews have no host (Vousoir removed
+the CDN fallback by design, so `product.overrides.json` must supply a
+`webviewContentExternalBaseUrlTemplate`), and running from sources the browser's product literal has no
+`quality`, so it requests `/oss-dev/…` while the server serves `/stable-dev/…` and every extension
+resource 404s. Both are dev-only; a packaged build inlines the real `product.json`. With those fixed
+the workbench loads, the extension activates and the activity-bar icon appears — but **every
+out-of-process iframe crashes its renderer in the Chrome profile tested**, including
+`https://example.com`, so webviews cannot be exercised there. That is a browser fault, not a Vousoir
+one. Desktop is the working automation path.
 
 ## Decision log
 
@@ -54,6 +77,9 @@ render, select one, confirm the panel populates. M3 is gated on M2 here — a bl
 | 2026-07-24 | MCP server is a standalone stdio package, not an extension of the service-host protocol; nine merged tools | [ADR-006](./ADR.md) |
 | 2026-07-24 | Develop in a git worktree with junctioned dependencies — accepted as time-boxed debt | [ADR-007](./ADR.md) |
 | 2026-07-24 | Extend `specNodeFrontmatterSchema` in place; never fork it into a parallel `ModuleNode` | [ADR-008](./ADR.md) |
+| 2026-07-27 | **One gesture selects for both surfaces.** Click sets the webview's `selectedId` *and* posts `selectNode`; right-click does the same and adds a notice. Two gestures each driving one half of the selection is a state split, and the two halves will disagree | `media/canvas.js` `select()` |
+| 2026-07-27 | **Any element that overlays the canvas restates `[hidden]` at its own specificity.** An ID rule with `display` silently outranks the UA's `[hidden] { display: none }`, and the failure mode — invisible, still hit-testable — looks like broken JavaScript, not broken CSS | `media/canvas.css` |
+| 2026-07-27 | **Desktop, not browser, is Vousoir's UI-automation path.** `scripts/vousoir-dev.ps1` + `@playwright/cli` over CDP. The browser route works up to the point of webviews and is kept (`scripts/vousoir-web.ps1`), but it depends on out-of-process iframes, which are a per-browser-profile risk | `PATCHES.md` row 9 |
 
 ### User rulings on PR #11 — 2026-07-24
 

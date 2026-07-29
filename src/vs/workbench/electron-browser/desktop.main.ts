@@ -61,6 +61,7 @@ import { ElectronRemoteResourceLoader } from '../../platform/remote/electron-bro
 import { IConfigurationService } from '../../platform/configuration/common/configuration.js';
 import { applyZoom } from '../../platform/window/electron-browser/window.js';
 import { mainWindow } from '../../base/browser/window.js';
+import { VIBRANCY_CLASS_NAME } from './vibrancy.js';
 
 export class DesktopMain extends Disposable {
 
@@ -150,11 +151,17 @@ export class DesktopMain extends Disposable {
 	}
 
 	private getExtraClasses(): string[] {
+		const classes: string[] = [];
+
 		if (isMacintosh && isTahoeOrNewer(this.configuration.os.release)) {
-			return ['macos-tahoe'];
+			classes.push('macos-tahoe');
 		}
 
-		return [];
+		if (this.configuration.vibrancy) {
+			classes.push(VIBRANCY_CLASS_NAME);
+		}
+
+		return classes;
 	}
 
 	private registerListeners(workbench: Workbench, storageService: NativeWorkbenchStorageService): void {

@@ -80,7 +80,12 @@
 		const style = document.createElement('style');
 		style.className = 'initialShellColors';
 		window.document.head.appendChild(style);
-		style.textContent = `body {	background-color: ${shellBackground}; color: ${shellForeground}; margin: 0; padding: 0; }`;
+
+		// With window vibrancy the body must never paint an opaque color, not even
+		// for the split second before the workbench renders: the first opaque paint
+		// makes the whole web contents opaque and the system backdrop stays hidden
+		// for the lifetime of the window.
+		style.textContent = `body {	background-color: ${configuration.vibrancy ? 'transparent' : shellBackground}; color: ${shellForeground}; margin: 0; padding: 0; }`;
 
 		// set zoom level as soon as possible
 		if (typeof data?.zoomLevel === 'number' && typeof preloadGlobals?.webFrame?.setZoomLevel === 'function') {

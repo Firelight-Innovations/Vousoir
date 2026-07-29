@@ -15,6 +15,7 @@
 	],
 	"exclude": [
 		"src/**/*.smoke.test.ts",
+		"src/**/*-fixture.ts",
 		"src/webview-harness.ts"
 	]
 }

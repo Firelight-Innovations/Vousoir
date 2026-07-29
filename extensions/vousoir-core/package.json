@@ -67,7 +67,10 @@
           }
         ]
       }
-    ]
+    ],
+    "configurationDefaults": {
+      "workbench.iconTheme": "material-icon-theme"
+    }
   },
   "scripts": {
     "compile": "node esbuild.mts",

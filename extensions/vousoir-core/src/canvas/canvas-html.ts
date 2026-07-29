@@ -44,7 +44,7 @@ export function canvasHtml(webview: Webview, mediaRoot: Uri, projectName: string
 	<button id="v6r-delete" type="button" title="Delete the selected module">Delete</button>
 	<button id="v6r-tidy" type="button" title="Re-run auto-layout, discarding manual placements">Tidy</button>
 	<button id="v6r-back" type="button" title="Back to the whole tree">Whole tree</button>
-	<span id="v6r-hint">right-click a module to select &middot; double-click to drill in &middot; drag to pan &middot; scroll to zoom</span>
+	<span id="v6r-hint">click a module to select &middot; double-click to drill in &middot; drag to pan &middot; scroll to zoom</span>
 </div>
 <div id="v6r-notice" hidden></div>
 <div id="v6r-viewport"><div id="v6r-surface"></div></div>

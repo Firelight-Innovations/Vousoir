@@ -20,6 +20,7 @@
 	const viewport = document.getElementById('v6r-viewport');
 	const surface = document.getElementById('v6r-surface');
 	const empty = document.getElementById('v6r-empty');
+	const project = document.getElementById('v6r-project');
 
 	const notice = document.getElementById('v6r-notice');
 	let noticeTimer = null;
@@ -37,6 +38,10 @@
 	}
 
 	function render(message) {
+		// Drilling in re-titles the canvas "Project / Module" (v6r-canvas-provider #render), so
+		// this is the only thing telling the user which subtree they are looking at.
+		project.textContent = message.projectName;
+
 		surface.replaceChildren();
 		surface.style.width = `${message.width}px`;
 		surface.style.height = `${message.height}px`;
@@ -54,6 +59,28 @@
 		for (const box of [...message.boxes].sort((a, b) => a.depth - b.depth)) {
 			surface.append(renderBox(box));
 		}
+		// A render replaces every element, so the selection outline has to be reapplied. The
+		// selected module may also have been deleted underneath us, in which case nothing matches.
+		markSelected();
+	}
+
+	/** Paints the selection outline on whichever node is currently selected, if any. */
+	function markSelected() {
+		for (const element of surface.children) {
+			element.classList.toggle('v6r-selected', selectedId !== null && element.dataset.id === selectedId);
+		}
+	}
+
+	/**
+	 * One gesture selects for both surfaces: `selectedId` drives the toolbar here in the
+	 * webview, and the posted message drives the spec panel across the extension host. They
+	 * were previously set by different gestures - left-click told the panel, right-click told
+	 * the toolbar - so whichever one you used, the other disagreed.
+	 */
+	function select(id) {
+		selectedId = id;
+		markSelected();
+		vscode.postMessage({ type: 'selectNode', id: id });
 	}
 
 	function renderBox(box) {
@@ -79,7 +106,7 @@
 		element.addEventListener('mousedown', (event) => {
 			// Stop the pan handler claiming a gesture that was aimed at a node.
 			event.stopPropagation();
-			vscode.postMessage({ type: 'selectNode', id: box.id });
+			select(box.id);
 			dragging = {
 				id: box.id,
 				box: box,
@@ -96,7 +123,7 @@
 		element.addEventListener('contextmenu', (event) => {
 			event.preventDefault();
 			event.stopPropagation();
-			selectedId = box.id;
+			select(box.id);
 			showNotice('Selected "' + box.title + '". Use the toolbar to add, rename or delete.');
 		});
 		return element;
@@ -169,7 +196,7 @@
 		}
 		panning = { x: event.clientX - view.x, y: event.clientY - view.y };
 		viewport.classList.add('v6r-panning');
-		vscode.postMessage({ type: 'selectNode', id: null });
+		select(null);
 	});
 
 	window.addEventListener('mousemove', (event) => {
@@ -259,11 +286,11 @@
 		vscode.postMessage({ type: 'createNode', parent: selectedId });
 	});
 	document.getElementById('v6r-rename').addEventListener('click', () => {
-		if (selectedId === null) { showNotice('Select a module first (right-click it).'); return; }
+		if (selectedId === null) { showNotice('Select a module first by clicking it.'); return; }
 		vscode.postMessage({ type: 'renameNode', id: selectedId });
 	});
 	document.getElementById('v6r-delete').addEventListener('click', () => {
-		if (selectedId === null) { showNotice('Select a module first (right-click it).'); return; }
+		if (selectedId === null) { showNotice('Select a module first by clicking it.'); return; }
 		vscode.postMessage({ type: 'deleteNode', id: selectedId });
 	});
 	document.getElementById('v6r-tidy').addEventListener('click', () => {
